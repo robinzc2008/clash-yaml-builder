@@ -3,6 +3,7 @@ import {
   META_RULES_DAT_REPO,
   metaRulesDatCatalog,
 } from "../sources/metaRulesDat";
+import type { AppLanguage } from "../../features/wizard/types";
 
 export interface PresetPack {
   id: string;
@@ -23,6 +24,7 @@ export interface PresetPack {
   rules: RuleSpec[];
   sourceLabel?: string;
   sourceUrl?: string;
+  i18n?: Partial<Record<AppLanguage, { name: string; description: string }>>;
 }
 
 export const presetPacks: PresetPack[] = [
@@ -58,6 +60,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "中国大陆直连",
+        description: "使用上游 CN geosite 规则集做大陆站点直连。",
+      },
+    },
   },
   {
     id: "preset-ai-routing",
@@ -101,6 +109,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "AI 服务包",
+        description: "把主流 AI 服务统一导向单独的 AI 策略组。",
+      },
+    },
   },
   {
     id: "preset-openai",
@@ -144,6 +158,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "OpenAI",
+        description: "将 OpenAI 域名导向专用 AI 策略组。",
+      },
+    },
   },
   {
     id: "preset-claude",
@@ -185,6 +205,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "Claude",
+        description: "将 Claude 和 Anthropic 域名导向 AI 策略组。",
+      },
+    },
   },
   {
     id: "preset-gemini",
@@ -227,6 +253,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "Gemini",
+        description: "将 Gemini 相关域名导向 AI 策略组。",
+      },
+    },
   },
   {
     id: "preset-github",
@@ -260,6 +292,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "GitHub",
+        description: "将 GitHub 相关域名导向默认代理组。",
+      },
+    },
   },
   {
     id: "preset-google",
@@ -293,6 +331,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "Google",
+        description: "将 Google 搜索及其服务域名导向默认代理组。",
+      },
+    },
   },
   {
     id: "preset-streaming",
@@ -354,6 +398,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "流媒体包",
+        description: "为主流流媒体服务创建独立策略组。",
+      },
+    },
   },
   {
     id: "preset-netflix",
@@ -397,6 +447,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "Netflix",
+        description: "将 Netflix 域名导向流媒体策略组。",
+      },
+    },
   },
   {
     id: "preset-youtube",
@@ -440,6 +496,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "YouTube",
+        description: "将 YouTube 域名导向流媒体策略组。",
+      },
+    },
   },
   {
     id: "preset-telegram",
@@ -473,6 +535,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "Telegram",
+        description: "将 Telegram 域名导向默认代理组。",
+      },
+    },
   },
   {
     id: "preset-apple",
@@ -516,6 +584,12 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "Apple",
+        description: "为 Apple 相关服务增加独立分流策略。",
+      },
+    },
   },
   {
     id: "preset-adblock",
@@ -548,5 +622,11 @@ export const presetPacks: PresetPack[] = [
         enabled: true,
       },
     ],
+    i18n: {
+      zh: {
+        name: "广告拦截",
+        description: "加入一个简单的广告域名拒绝规则集。",
+      },
+    },
   },
 ];

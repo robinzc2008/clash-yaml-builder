@@ -1,6 +1,7 @@
 import type { WizardState } from "./types";
 
 export const defaultWizardState: WizardState = {
+  language: "en",
   projectName: "Home Routing Project",
   target: "openclash",
   mode: "simple",

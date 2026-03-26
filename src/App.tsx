@@ -14,24 +14,7 @@ import {
 } from "./features/wizard/persistence";
 import { targetDefinitions } from "./features/wizard/targetDefinitions";
 import type { TargetPlatform } from "./core/model/types";
-
-const wizardSteps = [
-  { id: 0, title: "Target" },
-  { id: 1, title: "Basics" },
-  { id: 2, title: "Presets" },
-  { id: 3, title: "Inputs" },
-  { id: 4, title: "Review" },
-] as const;
-
-const presetCategoryLabels = {
-  foundation: "Foundation",
-  ai: "AI",
-  work: "Work",
-  streaming: "Streaming",
-  communication: "Communication",
-  ecosystem: "Ecosystem",
-  security: "Security",
-} as const;
+import { messages } from "./i18n/messages";
 
 export function App() {
   const initialDraft = loadWizardDraft();
@@ -39,10 +22,29 @@ export function App() {
   const [importMessage, setImportMessage] = useState<string>("");
   const [currentStep, setCurrentStep] = useState(initialDraft?.step ?? 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const t = messages[wizard.language];
+
+  const wizardSteps = [
+    { id: 0, title: t.stepTarget },
+    { id: 1, title: t.stepBasics },
+    { id: 2, title: t.stepPresets },
+    { id: 3, title: t.stepInputs },
+    { id: 4, title: t.stepReview },
+  ] as const;
+
+  const presetCategoryLabels = {
+    foundation: t.foundation,
+    ai: t.ai,
+    work: t.work,
+    streaming: t.streaming,
+    communication: t.communication,
+    ecosystem: t.ecosystem,
+    security: t.security,
+  } as const;
 
   const sourceProject = useMemo(() => createProjectFromWizard(wizard), [wizard]);
   const { project, validation, rendered } = buildProjectArtifact(sourceProject);
-  const explanation = explainProject(project);
+  const explanation = explainProject(project, wizard.language);
   const capability = platformCapabilities[project.meta.target];
   const availablePresets = presetPacks.filter((preset) =>
     preset.supportedTargets.includes(wizard.target),
@@ -59,7 +61,7 @@ export function App() {
   );
   const selectedSources = selectedPresets.flatMap((preset) =>
     preset.ruleProviders.map((provider) => ({
-      preset: preset.name,
+      preset: preset.i18n?.[wizard.language]?.name ?? preset.name,
       providerName: provider.name,
       sourceLabel: provider.sourceLabel ?? preset.sourceLabel ?? "Inline rules",
       sourceUrl: provider.url ?? provider.sourceUrl ?? preset.sourceUrl ?? "",
@@ -116,7 +118,7 @@ export function App() {
   function resetWizard() {
     setWizard(defaultWizardState);
     setCurrentStep(0);
-    setImportMessage("Draft cleared and reset to defaults.");
+    setImportMessage(t.draftCleared);
     clearWizardDraft();
   }
 
@@ -130,6 +132,7 @@ export function App() {
       const text = await file.text();
       const parsed = builderProjectSchema.parse(JSON.parse(text));
       setWizard({
+        language: wizard.language,
         projectName: parsed.meta.name,
         target: parsed.meta.target,
         mode: parsed.meta.mode,
@@ -168,11 +171,11 @@ export function App() {
           .map((rule) => rule.match.value ?? "")
           .join("\n"),
       });
-      setImportMessage(`Imported ${file.name}`);
+      setImportMessage(`${t.imported} ${file.name}`);
       goToStep(4);
     } catch (error) {
       setImportMessage(
-        error instanceof Error ? `Import failed: ${error.message}` : "Import failed",
+        error instanceof Error ? `${t.importFailed}: ${error.message}` : t.importFailed,
       );
     } finally {
       event.target.value = "";
@@ -182,18 +185,31 @@ export function App() {
   return (
     <main className="app-shell">
       <section className="hero">
-        <p className="eyebrow">Cross-platform routing rule studio</p>
+        <div className="hero-topbar">
+          <p className="eyebrow">{t.heroEyebrow}</p>
+          <label className="language-switcher">
+            <span>{t.language}</span>
+            <select
+              value={wizard.language}
+              onChange={(event) =>
+                setWizard((current) => ({
+                  ...current,
+                  language: event.target.value as "en" | "zh",
+                }))
+              }
+            >
+              <option value="en">{t.english}</option>
+              <option value="zh">{t.chinese}</option>
+            </select>
+          </label>
+        </div>
         <h1>clash-yaml-builder</h1>
-        <p className="lede">
-          A guided builder that separates user intent from target YAML, so we can
-          support routers, Windows clients, macOS, and future mobile companions
-          without turning every release into a rewrite.
-        </p>
+        <p className="lede">{t.heroDescription}</p>
       </section>
 
       <section className="wizard-layout">
         <aside className="panel wizard-sidebar">
-          <h2>Wizard</h2>
+          <h2>{t.wizard}</h2>
           <div className="step-list">
             {wizardSteps.map((step) => (
               <button
@@ -209,10 +225,10 @@ export function App() {
           </div>
           <div className="summary-box">
             <strong>{capability.label}</strong>
-            <span>Project: {wizard.projectName || "Untitled"}</span>
-            <span>Presets: {selectedPresets.length}</span>
-            <span>Sources: {selectedSources.length}</span>
-            {initialDraft ? <span>Draft restored from local storage.</span> : null}
+            <span>{t.project}: {wizard.projectName || t.untitled}</span>
+            <span>{t.presets}: {selectedPresets.length}</span>
+            <span>{t.sources}: {selectedSources.length}</span>
+            {initialDraft ? <span>{t.draftRestored}</span> : null}
           </div>
         </aside>
 
@@ -220,20 +236,23 @@ export function App() {
           {currentStep === 0 ? (
             <section className="grid grid-wide">
               <article className="panel">
-                <h2>Step 1. Choose Target</h2>
+                <h2>{t.step1}</h2>
                 <div className="target-grid">
-                  {targetDefinitions.map((target) => (
-                    <button
-                      className={`target-card ${wizard.target === target.id ? "target-card-active" : ""}`}
-                      key={target.id}
-                      onClick={() => updateTarget(target.id)}
-                      type="button"
-                    >
-                      <strong>{target.title}</strong>
-                      <span>{target.summary}</span>
-                      <small>{target.idealFor}</small>
-                    </button>
-                  ))}
+                  {targetDefinitions.map((target) => {
+                    const localized = target.i18n?.[wizard.language];
+                    return (
+                      <button
+                        className={`target-card ${wizard.target === target.id ? "target-card-active" : ""}`}
+                        key={target.id}
+                        onClick={() => updateTarget(target.id)}
+                        type="button"
+                      >
+                        <strong>{localized?.title ?? target.title}</strong>
+                        <span>{localized?.summary ?? target.summary}</span>
+                        <small>{localized?.idealFor ?? target.idealFor}</small>
+                      </button>
+                    );
+                  })}
                 </div>
               </article>
             </section>
@@ -242,9 +261,9 @@ export function App() {
           {currentStep === 1 ? (
             <section className="grid">
               <article className="panel">
-                <h2>Step 2. Project Basics</h2>
+                <h2>{t.step2}</h2>
                 <label className="field">
-                  <span>Project name</span>
+                  <span>{t.projectName}</span>
                   <input
                     value={wizard.projectName}
                     onChange={(event) =>
@@ -256,7 +275,7 @@ export function App() {
                   />
                 </label>
                 <label className="field">
-                  <span>Mode</span>
+                  <span>{t.mode}</span>
                   <select
                     value={wizard.mode}
                     onChange={(event) =>
@@ -266,12 +285,12 @@ export function App() {
                       }))
                     }
                   >
-                    <option value="simple">Simple</option>
-                    <option value="advanced">Advanced</option>
+                    <option value="simple">{t.simple}</option>
+                    <option value="advanced">{t.advanced}</option>
                   </select>
                 </label>
                 <label className="field">
-                  <span>Default proxy group name</span>
+                  <span>{t.defaultProxyGroupName}</span>
                   <input
                     value={wizard.defaultProxyGroupName}
                     onChange={(event) =>
@@ -283,7 +302,7 @@ export function App() {
                   />
                 </label>
                 <label className="field">
-                  <span>Final fallback policy</span>
+                  <span>{t.finalFallbackPolicy}</span>
                   <select
                     value={wizard.finalPolicyMode}
                     onChange={(event) =>
@@ -293,17 +312,21 @@ export function App() {
                       }))
                     }
                   >
-                    <option value="default-proxy">Use default proxy group</option>
-                    <option value="direct">DIRECT</option>
+                    <option value="default-proxy">{t.useDefaultProxyGroup}</option>
+                    <option value="direct">{t.direct}</option>
                   </select>
                 </label>
                 <div className="hint">
                   <strong>{capability.label}</strong>
                   <span>
-                    Process rules: {capability.supports.processRule ? "supported" : "not supported"}
+                    {capability.supports.processRule
+                      ? t.processRulesSupported
+                      : t.processRulesUnsupported}
                   </span>
                   <span>
-                    Source IP rules: {capability.supports.srcIpRule ? "supported" : "not supported"}
+                    {capability.supports.srcIpRule
+                      ? t.srcIpRulesSupported
+                      : t.srcIpRulesUnsupported}
                   </span>
                 </div>
               </article>
@@ -313,31 +336,34 @@ export function App() {
           {currentStep === 2 ? (
             <section className="grid">
               <article className="panel">
-                <h2>Step 3. Pick Presets</h2>
+                <h2>{t.step3}</h2>
                 <div className="hint hint-compact">
-                  <strong>Tip</strong>
-                  <span>Bundle presets are quick-start packs. Service presets let users fine-tune one app or service at a time.</span>
+                  <strong>{t.tip}</strong>
+                  <span>{t.presetTip}</span>
                 </div>
                 <div className="stack">
                   {groupedPresets.map(([category, presets]) => (
                     <div className="preset-group" key={category}>
                       <h3>{presetCategoryLabels[category as keyof typeof presetCategoryLabels]}</h3>
                       <div className="stack">
-                        {presets.map((preset) => (
-                          <label className="check-row" key={preset.id}>
-                            <input
-                              checked={wizard.selectedPresetIds.includes(preset.id)}
-                              onChange={() => togglePreset(preset.id)}
-                              type="checkbox"
-                            />
-                            <span>
-                              <strong>{preset.name}</strong>
-                              <small>{preset.description}</small>
-                              <small>{preset.style === "service" ? "Type: service preset" : "Type: bundle preset"}</small>
-                              {preset.sourceLabel ? <small>Source: {preset.sourceLabel}</small> : null}
-                            </span>
-                          </label>
-                        ))}
+                        {presets.map((preset) => {
+                          const localized = preset.i18n?.[wizard.language];
+                          return (
+                            <label className="check-row" key={preset.id}>
+                              <input
+                                checked={wizard.selectedPresetIds.includes(preset.id)}
+                                onChange={() => togglePreset(preset.id)}
+                                type="checkbox"
+                              />
+                              <span>
+                                <strong>{localized?.name ?? preset.name}</strong>
+                                <small>{localized?.description ?? preset.description}</small>
+                                <small>{preset.style === "service" ? t.typeService : t.typeBundle}</small>
+                                {preset.sourceLabel ? <small>{t.source}: {preset.sourceLabel}</small> : null}
+                              </span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -345,13 +371,13 @@ export function App() {
               </article>
 
               <article className="panel">
-                <h2>Source Preview</h2>
+                <h2>{t.sourcePreview}</h2>
                 <div className="source-summary">
-                  <span>Bundles: {bundlePresets.length}</span>
-                  <span>Services: {servicePresets.length}</span>
+                  <span>{t.bundles}: {bundlePresets.length}</span>
+                  <span>{t.services}: {servicePresets.length}</span>
                 </div>
                 {selectedSources.length === 0 ? (
-                  <p>No upstream rule sources selected yet.</p>
+                  <p>{t.noSources}</p>
                 ) : (
                   <div className="stack">
                     {selectedSources.map((source) => (
@@ -375,9 +401,9 @@ export function App() {
           {currentStep === 3 ? (
             <section className="grid">
               <article className="panel">
-                <h2>Step 4. Routing Inputs</h2>
+                <h2>{t.step4}</h2>
                 <label className="field">
-                  <span>AI group name</span>
+                  <span>{t.aiGroupName}</span>
                   <input
                     value={wizard.aiGroupName}
                     onChange={(event) =>
@@ -389,7 +415,7 @@ export function App() {
                   />
                 </label>
                 <label className="field">
-                  <span>Streaming group name</span>
+                  <span>{t.streamingGroupName}</span>
                   <input
                     value={wizard.streamingGroupName}
                     onChange={(event) =>
@@ -401,7 +427,7 @@ export function App() {
                   />
                 </label>
                 <label className="field">
-                  <span>Apple group name</span>
+                  <span>{t.appleGroupName}</span>
                   <input
                     value={wizard.appleGroupName}
                     onChange={(event) =>
@@ -424,12 +450,12 @@ export function App() {
                     type="checkbox"
                   />
                   <span>
-                    <strong>Enable LAN direct routing</strong>
-                    <small>Useful for routers, NAS traffic, and local network devices.</small>
+                    <strong>{t.enableLanDirect}</strong>
+                    <small>{t.enableLanDirectHelp}</small>
                   </span>
                 </label>
                 <label className="field">
-                  <span>LAN CIDR</span>
+                  <span>{t.lanCidr}</span>
                   <input
                     value={wizard.lanCidr}
                     onChange={(event) =>
@@ -439,7 +465,7 @@ export function App() {
                 </label>
                 {wizard.target === "windows-mihomo" ? (
                   <label className="field">
-                    <span>Windows process name</span>
+                    <span>{t.processName}</span>
                     <input
                       value={wizard.processName}
                       onChange={(event) =>
@@ -452,7 +478,7 @@ export function App() {
                   </label>
                 ) : null}
                 <label className="field">
-                  <span>Custom domains, one per line</span>
+                  <span>{t.customDomains}</span>
                   <textarea
                     rows={6}
                     value={wizard.customDomains}
@@ -472,27 +498,27 @@ export function App() {
             <>
               <section className="grid">
                 <article className="panel">
-                  <h2>Step 5. Export</h2>
+                  <h2>{t.step5}</h2>
                   <div className="action-row">
                     <button className="action-button" onClick={exportProjectJson} type="button">
-                      Export project JSON
+                      {t.exportProjectJson}
                     </button>
                     <button className="action-button action-button-secondary" onClick={exportYaml} type="button">
-                      Export YAML
+                      {t.exportYaml}
                     </button>
                     <button
                       className="action-button action-button-ghost"
                       onClick={() => fileInputRef.current?.click()}
                       type="button"
                     >
-                      Import project JSON
+                      {t.importProjectJson}
                     </button>
                     <button
                       className="action-button action-button-ghost"
                       onClick={resetWizard}
                       type="button"
                     >
-                      Reset draft
+                      {t.resetDraft}
                     </button>
                     <input
                       ref={fileInputRef}
@@ -506,9 +532,9 @@ export function App() {
                 </article>
 
                 <article className="panel">
-                  <h2>Validation</h2>
+                  <h2>{t.validation}</h2>
                   {validation.issues.length === 0 ? (
-                    <p>No validation issues in the current project.</p>
+                    <p>{t.noValidationIssues}</p>
                   ) : (
                     <ul>
                       {validation.issues.map((issue) => (
@@ -523,7 +549,7 @@ export function App() {
 
               <section className="grid">
                 <article className="panel">
-                  <h2>Generated Explanation</h2>
+                  <h2>{t.generatedExplanation}</h2>
                   <div className="stack">
                     {explanation.map((item, index) => (
                       <p className="explanation-line" key={`${index}-${item}`}>
@@ -534,12 +560,12 @@ export function App() {
                 </article>
 
                 <article className="panel">
-                  <h2>Project JSON Preview</h2>
+                  <h2>{t.projectJsonPreview}</h2>
                   <pre>{JSON.stringify(project, null, 2)}</pre>
                 </article>
 
                 <article className="panel">
-                  <h2>Rendered YAML Preview</h2>
+                  <h2>{t.renderedYamlPreview}</h2>
                   <pre>{rendered.content}</pre>
                 </article>
               </section>
@@ -553,7 +579,7 @@ export function App() {
               onClick={() => goToStep(currentStep - 1)}
               disabled={currentStep === 0}
             >
-              Previous
+              {t.previous}
             </button>
             <button
               type="button"
@@ -561,7 +587,7 @@ export function App() {
               onClick={() => goToStep(currentStep + 1)}
               disabled={currentStep === wizardSteps.length - 1}
             >
-              Next
+              {t.next}
             </button>
           </section>
         </div>

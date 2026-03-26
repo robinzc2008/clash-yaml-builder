@@ -1,6 +1,9 @@
 import type { TargetPlatform } from "../../core/model/types";
 
+export type AppLanguage = "en" | "zh";
+
 export interface WizardState {
+  language: AppLanguage;
   projectName: string;
   target: TargetPlatform;
   mode: "simple" | "advanced";
