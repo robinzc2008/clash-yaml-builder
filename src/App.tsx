@@ -19,6 +19,8 @@ import {
 } from "./features/wizard/persistence";
 import { listRunningProcesses } from "./features/wizard/processPicker";
 import {
+  createCustomGroupId,
+  createCustomGroupName,
   getActiveGroupTargetIds,
   getPolicyTargetOptions,
   policyRefToTargetId,
@@ -328,34 +330,28 @@ export function App() {
         .filter((name) => name.startsWith("geosite:") || name.startsWith("geoip:"));
 
       const nextAssignments: Record<string, WizardPolicyTargetId> = {};
-      selectedPresetIds.forEach((presetId) => {
-        const preset = presetPacks.find((item) => item.id === presetId);
-        const firstProviderName = preset?.ruleProviders[0]?.name;
-        const matchedRule = parsed.rules.find((rule) => rule.match.value === firstProviderName);
-        nextAssignments[`preset:${presetId}`] = matchedRule
-          ? policyRefToTargetId(matchedRule.policy, defaultWizardState)
-          : "group-default-proxy";
-      });
-      selectedRemoteRuleIds.forEach((remoteId) => {
-        const matchedRule = parsed.rules.find((rule) => rule.match.value === remoteId);
-        nextAssignments[`remote:${remoteId}`] = matchedRule
-          ? policyRefToTargetId(matchedRule.policy, defaultWizardState)
-          : "group-default-proxy";
-      });
-
       const customDomainRule = parsed.rules.find((rule) =>
         rule.id.startsWith("rule-custom-domain-"),
       );
       const processRule = parsed.rules.find((rule) => rule.match.kind === "process_name");
-
-      setWizard({
-        language: wizard.language,
-        projectName: parsed.meta.name,
-        target: parsed.meta.target,
-        mode: parsed.meta.mode,
-        selectedPresetIds,
-        selectedRemoteRuleIds,
-        ruleAssignments: nextAssignments,
+      const customGroups = parsed.groups
+        .filter(
+          (group) =>
+            ![
+              "group-default-proxy",
+              "group-ai-services",
+              "group-streaming",
+              "group-apple",
+            ].includes(group.id),
+        )
+        .map((group, index) => ({
+          id: group.id.startsWith("group-custom:")
+            ? group.id.replace("group-custom:", "")
+            : `imported-${index + 1}`,
+          name: group.name,
+        }));
+      const importedState = {
+        ...defaultWizardState,
         defaultProxyGroupName:
           parsed.groups.find((group) => group.id === "group-default-proxy")?.name ??
           "Default Proxy",
@@ -367,6 +363,40 @@ export function App() {
           "Streaming",
         appleGroupName:
           parsed.groups.find((group) => group.id === "group-apple")?.name ?? "Apple",
+        customGroups,
+      };
+      selectedPresetIds.forEach((presetId) => {
+        const preset = presetPacks.find((item) => item.id === presetId);
+        const firstProviderName = preset?.ruleProviders[0]?.name;
+        const matchedRule = parsed.rules.find((rule) => rule.match.value === firstProviderName);
+        nextAssignments[`preset:${presetId}`] = matchedRule
+          ? policyRefToTargetId(matchedRule.policy, importedState)
+          : "group-default-proxy";
+      });
+      selectedRemoteRuleIds.forEach((remoteId) => {
+        const matchedRule = parsed.rules.find((rule) => rule.match.value === remoteId);
+        nextAssignments[`remote:${remoteId}`] = matchedRule
+          ? policyRefToTargetId(matchedRule.policy, importedState)
+          : "group-default-proxy";
+      });
+
+      setWizard({
+        language: wizard.language,
+        projectName: parsed.meta.name,
+        target: parsed.meta.target,
+        mode: parsed.meta.mode,
+        selectedPresetIds,
+        selectedRemoteRuleIds,
+        ruleAssignments: nextAssignments,
+        defaultProxyGroupName:
+          importedState.defaultProxyGroupName,
+        aiGroupName:
+          importedState.aiGroupName,
+        streamingGroupName:
+          importedState.streamingGroupName,
+        appleGroupName:
+          importedState.appleGroupName,
+        customGroups,
         finalPolicyMode:
           parsed.settings.finalPolicy.kind === "builtin" &&
           parsed.settings.finalPolicy.value === "DIRECT"
@@ -378,14 +408,14 @@ export function App() {
           "192.168.1.0/24",
         processName: processRule?.match.value ?? "",
         processTarget: processRule
-          ? policyRefToTargetId(processRule.policy, defaultWizardState)
+          ? policyRefToTargetId(processRule.policy, importedState)
           : "group-default-proxy",
         customDomains: parsed.rules
           .filter((rule) => rule.id.startsWith("rule-custom-domain-"))
           .map((rule) => rule.match.value ?? "")
           .join("\n"),
         customDomainTarget: customDomainRule
-          ? policyRefToTargetId(customDomainRule.policy, defaultWizardState)
+          ? policyRefToTargetId(customDomainRule.policy, importedState)
           : "group-default-proxy",
       });
       setImportMessage(`${t.imported} ${file.name}`);
@@ -773,21 +803,66 @@ export function App() {
                       );
                     }
 
+                    if (targetId === "group-apple") {
+                      return (
+                        <label className="field" key={targetId}>
+                          <span>{t.appleGroupName}</span>
+                          <input
+                            value={wizard.appleGroupName}
+                            onChange={(event) =>
+                              setWizard((current) => ({
+                                ...current,
+                                appleGroupName: event.target.value,
+                              }))
+                            }
+                          />
+                        </label>
+                      );
+                    }
+
+                    const customId = targetId.replace("group-custom:", "");
+                    const customGroup = wizard.customGroups.find((group) => group.id === customId);
+
                     return (
                       <label className="field" key={targetId}>
-                        <span>{t.appleGroupName}</span>
+                        <span>{customGroup?.name ?? targetId}</span>
                         <input
-                          value={wizard.appleGroupName}
+                          value={customGroup?.name ?? ""}
                           onChange={(event) =>
                             setWizard((current) => ({
                               ...current,
-                              appleGroupName: event.target.value,
+                              customGroups: current.customGroups.map((group) =>
+                                group.id === customId
+                                  ? { ...group, name: event.target.value }
+                                  : group,
+                              ),
                             }))
                           }
                         />
                       </label>
                     );
                   })}
+                  <button
+                    type="button"
+                    className="action-button action-button-ghost"
+                    onClick={() =>
+                      setWizard((current) => {
+                        const id = createCustomGroupId(current.customGroups);
+                        return {
+                          ...current,
+                          customGroups: [
+                            ...current.customGroups,
+                            {
+                              id,
+                              name: createCustomGroupName(current.customGroups.length + 1, current.language),
+                            },
+                          ],
+                        };
+                      })
+                    }
+                  >
+                    {t.addCustomGroup}
+                  </button>
                 </div>
 
                 <div className="section-block">

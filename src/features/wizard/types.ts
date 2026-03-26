@@ -7,8 +7,14 @@ export type WizardPolicyTargetId =
   | "group-ai-services"
   | "group-streaming"
   | "group-apple"
+  | `group-custom:${string}`
   | "builtin:DIRECT"
   | "builtin:REJECT";
+
+export interface WizardCustomGroup {
+  id: string;
+  name: string;
+}
 
 export interface WizardState {
   language: AppLanguage;
@@ -22,6 +28,7 @@ export interface WizardState {
   aiGroupName: string;
   streamingGroupName: string;
   appleGroupName: string;
+  customGroups: WizardCustomGroup[];
   finalPolicyMode: "default-proxy" | "direct";
   enableLanDirect: boolean;
   lanCidr: string;

@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::fs;
 use std::process::Command;
 
 #[tauri::command]
@@ -46,10 +47,23 @@ fn list_running_processes() -> Result<Vec<String>, String> {
   }
 }
 
+#[tauri::command]
+fn save_text_file(default_name: String, content: String) -> Result<String, String> {
+  let Some(path) = rfd::FileDialog::new()
+    .set_file_name(&default_name)
+    .save_file() else {
+      return Ok("cancelled".to_string());
+    };
+
+  fs::write(&path, content).map_err(|error| format!("failed to save file: {error}"))?;
+
+  Ok(path.display().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![list_running_processes])
+    .invoke_handler(tauri::generate_handler![list_running_processes, save_text_file])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

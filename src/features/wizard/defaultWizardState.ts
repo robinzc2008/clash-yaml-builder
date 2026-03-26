@@ -22,6 +22,7 @@ export const defaultWizardState: WizardState = {
   aiGroupName: "AI Services",
   streamingGroupName: "Streaming",
   appleGroupName: "Apple",
+  customGroups: [],
   finalPolicyMode: "default-proxy",
   enableLanDirect: true,
   lanCidr: "192.168.1.0/24",

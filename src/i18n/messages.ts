@@ -67,6 +67,7 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
     routingGroupSection: "Policy group naming",
     routingGroupSectionHelp:
       "Only groups that are currently referenced by selected rules are shown here, so names and group count stay linked.",
+    addCustomGroup: "Add custom group",
     aiGroupName: "AI group name",
     streamingGroupName: "Streaming group name",
     appleGroupName: "Apple group name",
@@ -190,6 +191,7 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
     routingGroupSection: "策略组命名",
     routingGroupSectionHelp:
       "这里只显示当前已被规则引用到的策略组，所以策略组数量会和你前面选中的规则保持联动。",
+    addCustomGroup: "新增自定义策略组",
     aiGroupName: "AI 策略组名称",
     streamingGroupName: "流媒体策略组名称",
     appleGroupName: "Apple 策略组名称",

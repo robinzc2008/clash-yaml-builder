@@ -2,7 +2,7 @@ export const META_RULES_DAT_REPO =
   "https://github.com/MetaCubeX/meta-rules-dat";
 
 const META_RULES_DAT_API_BASE =
-  "https://api.github.com/repos/MetaCubeX/meta-rules-dat/contents/meta/geo";
+  "https://api.github.com/repos/MetaCubeX/meta-rules-dat/contents/geo";
 const META_BRANCH_RAW_BASE =
   "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo";
 

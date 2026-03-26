@@ -14,10 +14,10 @@ import {
   getGroupNameByTarget,
   targetIdToPolicyRef,
 } from "../features/wizard/routingTargets";
-import type { NamedGroupTargetId } from "../features/wizard/routingTargets";
+import type { WizardGroupTargetId } from "../features/wizard/routingTargets";
 import type { WizardPolicyTargetId, WizardState } from "../features/wizard/types";
 
-function buildGroupByTargetId(targetId: NamedGroupTargetId, state: WizardState): GroupSpec {
+function buildGroupByTargetId(targetId: WizardGroupTargetId, state: WizardState): GroupSpec {
   const name = getGroupNameByTarget(targetId, state);
 
   switch (targetId) {
@@ -50,6 +50,16 @@ function buildGroupByTargetId(targetId: NamedGroupTargetId, state: WizardState):
         members: [
           { kind: "builtin", value: "DIRECT" },
           { kind: "group", ref: "group-default-proxy" },
+        ],
+      };
+    default:
+      return {
+        id: targetId,
+        name,
+        type: "select",
+        members: [
+          { kind: "group", ref: "group-default-proxy" },
+          { kind: "builtin", value: "DIRECT" },
         ],
       };
   }

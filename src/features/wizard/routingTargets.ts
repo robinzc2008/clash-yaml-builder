@@ -1,7 +1,12 @@
 import type { PolicyRef } from "../../core/model/types";
 import type { PresetPack } from "../../core/presets/presetPacks";
-import type { AppLanguage, WizardPolicyTargetId, WizardState } from "./types";
 import type { MetaRulesDatRemoteItem } from "../../core/sources/metaRulesDat";
+import type {
+  AppLanguage,
+  WizardCustomGroup,
+  WizardPolicyTargetId,
+  WizardState,
+} from "./types";
 
 export const namedGroupTargetIds = [
   "group-default-proxy",
@@ -11,12 +16,17 @@ export const namedGroupTargetIds = [
 ] as const;
 
 export type NamedGroupTargetId = (typeof namedGroupTargetIds)[number];
+export type WizardGroupTargetId = NamedGroupTargetId | `group-custom:${string}`;
 
-export function isNamedGroupTargetId(value: WizardPolicyTargetId): value is NamedGroupTargetId {
-  return namedGroupTargetIds.includes(value as NamedGroupTargetId);
+export function isGroupTargetId(value: WizardPolicyTargetId): value is WizardGroupTargetId {
+  return value.startsWith("group-");
 }
 
-export function getGroupNameByTarget(targetId: NamedGroupTargetId, state: WizardState): string {
+export function getCustomGroupIdFromTarget(targetId: WizardGroupTargetId) {
+  return targetId.startsWith("group-custom:") ? targetId.replace("group-custom:", "") : null;
+}
+
+export function getGroupNameByTarget(targetId: WizardGroupTargetId, state: WizardState): string {
   switch (targetId) {
     case "group-default-proxy":
       return state.defaultProxyGroupName;
@@ -26,6 +36,13 @@ export function getGroupNameByTarget(targetId: NamedGroupTargetId, state: Wizard
       return state.streamingGroupName;
     case "group-apple":
       return state.appleGroupName;
+    default: {
+      const customGroupId = getCustomGroupIdFromTarget(targetId);
+      return (
+        state.customGroups.find((group) => group.id === customGroupId)?.name ??
+        targetId.replace("group-custom:", "")
+      );
+    }
   }
 }
 
@@ -62,6 +79,11 @@ export function policyRefToTargetId(
 
   if (policy.value === state.appleGroupName) {
     return "group-apple";
+  }
+
+  const customGroup = state.customGroups.find((group) => group.name === policy.value);
+  if (customGroup) {
+    return `group-custom:${customGroup.id}`;
   }
 
   return "group-default-proxy";
@@ -146,6 +168,10 @@ export function getPolicyTargetOptions(state: WizardState, language: AppLanguage
     { id: "group-ai-services", label: state.aiGroupName },
     { id: "group-streaming", label: state.streamingGroupName },
     { id: "group-apple", label: state.appleGroupName },
+    ...state.customGroups.map((group) => ({
+      id: `group-custom:${group.id}` as const,
+      label: group.name,
+    })),
     {
       id: "builtin:DIRECT",
       label: language === "zh" ? "直连 DIRECT" : "DIRECT",
@@ -159,22 +185,35 @@ export function getPolicyTargetOptions(state: WizardState, language: AppLanguage
   return options;
 }
 
-export function getActiveGroupTargetIds(state: WizardState): NamedGroupTargetId[] {
-  const active = new Set<NamedGroupTargetId>(["group-default-proxy"]);
+export function getActiveGroupTargetIds(state: WizardState): WizardGroupTargetId[] {
+  const active = new Set<WizardGroupTargetId>(["group-default-proxy"]);
 
   Object.values(state.ruleAssignments).forEach((target) => {
-    if (isNamedGroupTargetId(target)) {
+    if (isGroupTargetId(target)) {
       active.add(target);
     }
   });
 
-  if (isNamedGroupTargetId(state.customDomainTarget)) {
+  if (isGroupTargetId(state.customDomainTarget)) {
     active.add(state.customDomainTarget);
   }
 
-  if (isNamedGroupTargetId(state.processTarget)) {
+  if (isGroupTargetId(state.processTarget)) {
     active.add(state.processTarget);
   }
 
-  return namedGroupTargetIds.filter((targetId) => active.has(targetId));
+  return [
+    ...namedGroupTargetIds.filter((targetId) => active.has(targetId)),
+    ...state.customGroups
+      .map((group) => `group-custom:${group.id}` as const)
+      .filter((targetId) => active.has(targetId)),
+  ];
+}
+
+export function createCustomGroupName(index: number, language: AppLanguage) {
+  return language === "zh" ? `自定义策略组 ${index}` : `Custom Group ${index}`;
+}
+
+export function createCustomGroupId(existingGroups: WizardCustomGroup[]) {
+  return `cg-${existingGroups.length + 1}-${Date.now().toString(36)}`;
 }
