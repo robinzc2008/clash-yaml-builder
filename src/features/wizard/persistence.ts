@@ -1,4 +1,5 @@
 import type { WizardState } from "./types";
+import { defaultWizardState } from "./defaultWizardState";
 
 const STORAGE_KEY = "clash-yaml-builder:wizard-draft";
 
@@ -20,12 +21,21 @@ export function loadWizardDraft(): StoredWizardDraft | null {
       return null;
     }
 
-    const parsed = JSON.parse(raw) as StoredWizardDraft;
+    const parsed = JSON.parse(raw) as Partial<StoredWizardDraft>;
     if (parsed.version !== 1) {
       return null;
     }
 
-    return parsed;
+    return {
+      version: 1,
+      step: typeof parsed.step === "number" ? parsed.step : 0,
+      savedAt:
+        typeof parsed.savedAt === "string" ? parsed.savedAt : new Date().toISOString(),
+      wizard: {
+        ...defaultWizardState,
+        ...(parsed.wizard ?? {}),
+      },
+    };
   } catch {
     return null;
   }
