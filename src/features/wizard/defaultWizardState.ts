@@ -1,4 +1,4 @@
-import type { WizardState } from "./types";
+﻿import type { WizardState } from "./types";
 
 export const defaultWizardState: WizardState = {
   language: "zh",
@@ -12,6 +12,7 @@ export const defaultWizardState: WizardState = {
     "preset-streaming",
   ],
   selectedRemoteRuleIds: [],
+  remoteRuleAliases: {},
   ruleAssignments: {
     "preset:preset-cn-direct": "builtin:DIRECT",
     "preset:preset-ai-routing": "group-ai-services",
@@ -26,8 +27,23 @@ export const defaultWizardState: WizardState = {
   finalPolicyMode: "default-proxy",
   enableLanDirect: true,
   lanCidr: "192.168.1.0/24",
-  processName: "Telegram.exe",
-  processTarget: "group-default-proxy",
-  customDomains: "github.com\nclaude.ai",
-  customDomainTarget: "group-default-proxy",
+  processRules: [
+    {
+      id: "process-rule-1",
+      processName: "Telegram.exe",
+      target: "group-default-proxy",
+    },
+  ],
+  customDomainRules: [
+    {
+      id: "domain-rule-1",
+      domain: "github.com",
+      target: "group-default-proxy",
+    },
+    {
+      id: "domain-rule-2",
+      domain: "claude.ai",
+      target: "group-ai-services",
+    },
+  ],
 };

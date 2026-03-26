@@ -16,6 +16,18 @@ export interface WizardCustomGroup {
   name: string;
 }
 
+export interface WizardProcessRule {
+  id: string;
+  processName: string;
+  target: WizardPolicyTargetId;
+}
+
+export interface WizardDomainRule {
+  id: string;
+  domain: string;
+  target: WizardPolicyTargetId;
+}
+
 export interface WizardState {
   language: AppLanguage;
   projectName: string;
@@ -23,6 +35,7 @@ export interface WizardState {
   mode: "simple" | "advanced";
   selectedPresetIds: string[];
   selectedRemoteRuleIds: string[];
+  remoteRuleAliases: Record<string, string>;
   ruleAssignments: Record<string, WizardPolicyTargetId>;
   defaultProxyGroupName: string;
   aiGroupName: string;
@@ -32,8 +45,6 @@ export interface WizardState {
   finalPolicyMode: "default-proxy" | "direct";
   enableLanDirect: boolean;
   lanCidr: string;
-  processName: string;
-  processTarget: WizardPolicyTargetId;
-  customDomains: string;
-  customDomainTarget: WizardPolicyTargetId;
+  processRules: WizardProcessRule[];
+  customDomainRules: WizardDomainRule[];
 }

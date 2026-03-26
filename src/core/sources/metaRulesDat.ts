@@ -1,4 +1,4 @@
-export const META_RULES_DAT_REPO =
+﻿export const META_RULES_DAT_REPO =
   "https://github.com/MetaCubeX/meta-rules-dat";
 
 const META_RULES_DAT_API_BASE =
@@ -142,7 +142,7 @@ export async function fetchMetaRulesDatRemoteCatalog(): Promise<MetaRulesDatRemo
   });
 }
 
-export function buildRemoteRuleProviderFromId(id: string) {
+export function buildRemoteRuleProviderFromId(id: string, alias?: string) {
   const [kind, rawName] = id.split(":");
   const name = rawName?.trim();
 
@@ -150,9 +150,11 @@ export function buildRemoteRuleProviderFromId(id: string) {
     return null;
   }
 
+  const providerName = alias?.trim() || `${kind}:${name}`;
+
   return {
     id: `remote-rule-provider-${kind}-${name}`.replace(/[^a-z0-9-]/gi, "-"),
-    name: `${kind}:${name}`,
+    name: providerName,
     sourceType: "http" as const,
     behavior: kind === "geosite" ? ("domain" as const) : ("ipcidr" as const),
     format: "yaml" as const,

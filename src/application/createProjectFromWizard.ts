@@ -1,21 +1,20 @@
-import type {
+﻿import type {
   BuilderProject,
   BuiltinPolicy,
   GroupSpec,
   ProxyProviderSpec,
   RuleProviderSpec,
   RuleSpec,
-  TargetPlatform,
 } from "../core/model/types";
 import { presetPacks } from "../core/presets/presetPacks";
 import { buildRemoteRuleProviderFromId } from "../core/sources/metaRulesDat";
 import {
-  getActiveGroupTargetIds,
+  getAllGroupTargetIds,
   getGroupNameByTarget,
   targetIdToPolicyRef,
+  type WizardGroupTargetId,
 } from "../features/wizard/routingTargets";
-import type { WizardGroupTargetId } from "../features/wizard/routingTargets";
-import type { WizardPolicyTargetId, WizardState } from "../features/wizard/types";
+import type { WizardState } from "../features/wizard/types";
 
 function buildGroupByTargetId(targetId: WizardGroupTargetId, state: WizardState): GroupSpec {
   const name = getGroupNameByTarget(targetId, state);
@@ -65,8 +64,8 @@ function buildGroupByTargetId(targetId: WizardGroupTargetId, state: WizardState)
   }
 }
 
-function buildBaseGroups(state: WizardState): GroupSpec[] {
-  return getActiveGroupTargetIds(state).map((targetId) => buildGroupByTargetId(targetId, state));
+function buildGroups(state: WizardState): GroupSpec[] {
+  return getAllGroupTargetIds(state).map((targetId) => buildGroupByTargetId(targetId, state));
 }
 
 function buildBaseProxyProviders(): ProxyProviderSpec[] {
@@ -107,38 +106,51 @@ function buildLanRule(lanCidr: string): RuleSpec {
   };
 }
 
-function buildProcessRule(processName: string, targetId: WizardPolicyTargetId, state: WizardState): RuleSpec | null {
-  const trimmed = processName.trim();
-  if (!trimmed) {
-    return null;
-  }
+function buildProcessRules(state: WizardState): RuleSpec[] {
+  const rules: RuleSpec[] = [];
 
-  return {
-    id: "rule-process-app",
-    match: {
-      kind: "process_name",
-      value: trimmed,
-    },
-    policy: targetIdToPolicyRef(targetId, state),
-    priority: 30,
-    enabled: true,
-    comment: "Route the selected desktop app through the configured target.",
-  };
+  state.processRules.forEach((rule, index) => {
+    const trimmed = rule.processName.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    rules.push({
+      id: `rule-process-${rule.id}`,
+      match: {
+        kind: "process_name",
+        value: trimmed,
+      },
+      policy: targetIdToPolicyRef(rule.target, state),
+      priority: 300 + index,
+      enabled: true,
+      comment: "Route the selected desktop app through the configured target.",
+    });
+  });
+
+  return rules;
 }
 
-function buildCustomDomainRules(domains: string, targetId: WizardPolicyTargetId, state: WizardState): RuleSpec[] {
-  return domains
-    .split(/\r?\n/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((domain, index) => ({
-      id: `rule-custom-domain-${index + 1}`,
-      match: { kind: "domain_suffix" as const, value: domain },
-      policy: targetIdToPolicyRef(targetId, state),
-      priority: 200 + index,
+function buildCustomDomainRules(state: WizardState): RuleSpec[] {
+  const rules: RuleSpec[] = [];
+
+  state.customDomainRules.forEach((rule, index) => {
+    const trimmed = rule.domain.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    rules.push({
+      id: `rule-custom-domain-${rule.id}`,
+      match: { kind: "domain_suffix", value: trimmed },
+      policy: targetIdToPolicyRef(rule.target, state),
+      priority: 220 + index,
       enabled: true,
       comment: "Custom domain routing.",
-    }));
+    });
+  });
+
+  return rules;
 }
 
 function buildFinalPolicy(
@@ -152,7 +164,7 @@ function buildFinalPolicy(
 }
 
 function buildPresetRules(selectedPresetIds: string[], state: WizardState): RuleSpec[] {
-  return selectedPresetIds.flatMap((presetId) => {
+  return selectedPresetIds.flatMap((presetId, presetIndex) => {
     const preset = presetPacks.find((item) => item.id === presetId);
     if (!preset) {
       return [];
@@ -162,8 +174,9 @@ function buildPresetRules(selectedPresetIds: string[], state: WizardState): Rule
 
     return preset.rules.map((rule, index) => ({
       ...rule,
-      id: `${rule.id}-${index + 1}`,
+      id: `${rule.id}-${presetIndex + 1}-${index + 1}`,
       policy: targetIdToPolicyRef(targetId, state),
+      priority: 100 + presetIndex * 10 + index,
     }));
   });
 }
@@ -175,11 +188,11 @@ function buildPresetRuleProviders(selectedPresetIds: string[]): RuleProviderSpec
   });
 }
 
-function buildRemoteRuleProviders(selectedRemoteRuleIds: string[]): RuleProviderSpec[] {
+function buildRemoteRuleProviders(state: WizardState): RuleProviderSpec[] {
   const providers: RuleProviderSpec[] = [];
 
-  selectedRemoteRuleIds.forEach((id) => {
-    const provider = buildRemoteRuleProviderFromId(id);
+  state.selectedRemoteRuleIds.forEach((id) => {
+    const provider = buildRemoteRuleProviderFromId(id, state.remoteRuleAliases[id]);
     if (provider) {
       providers.push(provider);
     }
@@ -188,11 +201,11 @@ function buildRemoteRuleProviders(selectedRemoteRuleIds: string[]): RuleProvider
   return providers;
 }
 
-function buildRemoteRules(selectedRemoteRuleIds: string[], state: WizardState): RuleSpec[] {
+function buildRemoteRules(state: WizardState): RuleSpec[] {
   const rules: RuleSpec[] = [];
 
-  selectedRemoteRuleIds.forEach((id, index) => {
-    const provider = buildRemoteRuleProviderFromId(id);
+  state.selectedRemoteRuleIds.forEach((id, index) => {
+    const provider = buildRemoteRuleProviderFromId(id, state.remoteRuleAliases[id]);
     if (!provider) {
       return;
     }
@@ -203,7 +216,7 @@ function buildRemoteRules(selectedRemoteRuleIds: string[], state: WizardState): 
       id: `remote-rule-${id.replace(/[^a-z0-9-:]/gi, "-")}`,
       match: { kind: "rule_set", value: provider.name },
       policy: targetIdToPolicyRef(targetId, state),
-      priority: 120 + index,
+      priority: 180 + index,
       enabled: true,
       comment: "MetaCubeX remote rule selection.",
     });
@@ -214,24 +227,13 @@ function buildRemoteRules(selectedRemoteRuleIds: string[], state: WizardState): 
 
 export function createProjectFromWizard(state: WizardState): BuilderProject {
   const now = new Date().toISOString();
-  const groups = buildBaseGroups(state);
-  const proxyProviders = buildBaseProxyProviders();
-
-  const ruleProviders = mergeUniqueById<RuleProviderSpec>([
-    ...buildPresetRuleProviders(state.selectedPresetIds),
-    ...buildRemoteRuleProviders(state.selectedRemoteRuleIds),
-  ]);
 
   const rules = mergeUniqueById<RuleSpec>([
     ...(state.enableLanDirect ? [buildLanRule(state.lanCidr)] : []),
     ...buildPresetRules(state.selectedPresetIds, state),
-    ...buildRemoteRules(state.selectedRemoteRuleIds, state),
-    ...buildCustomDomainRules(state.customDomains, state.customDomainTarget, state),
-    ...(state.target === "windows-mihomo"
-      ? [buildProcessRule(state.processName, state.processTarget, state)].filter(
-          (rule): rule is RuleSpec => Boolean(rule),
-        )
-      : []),
+    ...buildRemoteRules(state),
+    ...buildCustomDomainRules(state),
+    ...(state.target === "windows-mihomo" ? buildProcessRules(state) : []),
     {
       id: "rule-final-match",
       match: { kind: "match" },
@@ -256,9 +258,12 @@ export function createProjectFromWizard(state: WizardState): BuilderProject {
       enableLanDirect: state.enableLanDirect,
       enableAdBlock: state.selectedPresetIds.includes("preset-adblock"),
     },
-    groups,
-    proxyProviders,
-    ruleProviders,
+    groups: buildGroups(state),
+    proxyProviders: buildBaseProxyProviders(),
+    ruleProviders: mergeUniqueById<RuleProviderSpec>([
+      ...buildPresetRuleProviders(state.selectedPresetIds),
+      ...buildRemoteRuleProviders(state),
+    ]),
     rules,
     features: [
       {

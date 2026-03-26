@@ -7,6 +7,7 @@ import { platformCapabilities } from "./core/capabilities/platformCapabilities";
 import { builderProjectSchema } from "./core/model/schema";
 import { presetPacks } from "./core/presets/presetPacks";
 import {
+  META_RULES_DAT_REPO,
   fetchMetaRulesDatRemoteCatalog,
   type MetaRulesDatRemoteItem,
 } from "./core/sources/metaRulesDat";
@@ -21,7 +22,7 @@ import { listRunningProcesses } from "./features/wizard/processPicker";
 import {
   createCustomGroupId,
   createCustomGroupName,
-  getActiveGroupTargetIds,
+  getAllGroupTargetIds,
   getPolicyTargetOptions,
   policyRefToTargetId,
   suggestTargetForPreset,
@@ -29,7 +30,11 @@ import {
 } from "./features/wizard/routingTargets";
 import { targetDefinitions } from "./features/wizard/targetDefinitions";
 import type { TargetPlatform } from "./core/model/types";
-import type { WizardPolicyTargetId } from "./features/wizard/types";
+import type {
+  WizardDomainRule,
+  WizardPolicyTargetId,
+  WizardProcessRule,
+} from "./features/wizard/types";
 import { messages } from "./i18n/messages";
 
 function formatSyncTime(value: string, language: "en" | "zh") {
@@ -60,6 +65,69 @@ function createRemotePlaceholder(id: string): MetaRulesDatRemoteItem {
   };
 }
 
+function createProcessRuleDraft(index: number): WizardProcessRule {
+  return {
+    id: `process-rule-${Date.now().toString(36)}-${index}`,
+    processName: "",
+    target: "group-default-proxy",
+  };
+}
+
+function createDomainRuleDraft(index: number): WizardDomainRule {
+  return {
+    id: `domain-rule-${Date.now().toString(36)}-${index}`,
+    domain: "",
+    target: "group-default-proxy",
+  };
+}
+
+function getRemoteDisplayName(item: MetaRulesDatRemoteItem, alias?: string) {
+  return alias?.trim() || item.providerName;
+}
+
+function moveItem<T extends { id: string }>(items: T[], sourceId: string, targetId: string) {
+  const sourceIndex = items.findIndex((item) => item.id === sourceId);
+  const targetIndex = items.findIndex((item) => item.id === targetId);
+
+  if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+    return items;
+  }
+
+  const next = [...items];
+  const [moved] = next.splice(sourceIndex, 1);
+  next.splice(targetIndex, 0, moved);
+  return next;
+}
+
+function shiftItem<T>(items: T[], index: number, delta: -1 | 1) {
+  const nextIndex = index + delta;
+  if (nextIndex < 0 || nextIndex >= items.length) {
+    return items;
+  }
+
+  const next = [...items];
+  const [moved] = next.splice(index, 1);
+  next.splice(nextIndex, 0, moved);
+  return next;
+}
+
+function extractRemoteRuleInfo(provider: { name: string; url?: string; sourceUrl?: string }) {
+  if (provider.sourceUrl !== META_RULES_DAT_REPO && !provider.url?.includes("MetaCubeX/meta-rules-dat")) {
+    return null;
+  }
+
+  const match = provider.url?.match(/\/geo\/(geosite|geoip)\/([^/.]+)\.ya?ml$/i);
+  if (!match) {
+    return null;
+  }
+
+  const kind = match[1] as "geosite" | "geoip";
+  const name = match[2];
+  const id = `${kind}:${name}`;
+  const alias = provider.name !== id ? provider.name : "";
+  return { id, alias };
+}
+
 export function App() {
   const initialDraft = loadWizardDraft();
   const [wizard, setWizard] = useState(initialDraft?.wizard ?? defaultWizardState);
@@ -77,8 +145,57 @@ export function App() {
     "idle",
   );
   const [processError, setProcessError] = useState("");
+  const [draggedDomainRuleId, setDraggedDomainRuleId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = messages[wizard.language];
+  const ux =
+    wizard.language === "zh"
+      ? {
+          processRulesMatrixHelp: "左侧填写或选择进程名，右侧选择这个进程要走的目标策略。",
+          domainRulesMatrixHelp: "每个域名单独指定目标策略，列表顺序越靠前，规则越优先命中。",
+          addProcessRule: "新增进程规则",
+          addDomainRule: "新增域名规则",
+          removeRule: "删除",
+          processColumn: "进程名",
+          domainColumn: "域名",
+          targetColumn: "目标策略",
+          chooseRunningProcess: "选择运行中的进程",
+          dragHint: "支持拖动排序，也可以用上下移动按钮调整生效顺序。",
+          moveUp: "上移",
+          moveDown: "下移",
+          remoteAlias: "规则名称",
+          remoteAliasHelp: "这里可以直接改导出时使用的规则集名称。",
+          renamePlaceholder: "例如 geosite:telegram 或 自定义规则名",
+          removeGroup: "删除策略组",
+          customGroupAlwaysVisible:
+            "这里会显示所有内置策略组和你新增的自定义策略组，不再只显示已引用的项目。",
+          processRowHint: "可直接输入 .exe，也可以从运行中的进程里选择。",
+          domainDragHandle: "拖动排序",
+        }
+      : {
+          processRulesMatrixHelp:
+            "Pick or type a process on the left, then choose the policy target on the right.",
+          domainRulesMatrixHelp:
+            "Each domain gets its own target. Higher rows are emitted earlier and match first.",
+          addProcessRule: "Add process rule",
+          addDomainRule: "Add domain rule",
+          removeRule: "Remove",
+          processColumn: "Process",
+          domainColumn: "Domain",
+          targetColumn: "Target",
+          chooseRunningProcess: "Choose a running process",
+          dragHint: "Drag rows to reorder them, or use move up/down controls.",
+          moveUp: "Move up",
+          moveDown: "Move down",
+          remoteAlias: "Rule name",
+          remoteAliasHelp: "Rename the exported ruleset directly from this page.",
+          renamePlaceholder: "For example geosite:telegram or a custom name",
+          removeGroup: "Remove group",
+          customGroupAlwaysVisible:
+            "All built-in groups and every custom group you add stay visible here, even before they are referenced.",
+          processRowHint: "You can type an .exe name or choose from the current running processes.",
+          domainDragHandle: "Drag to reorder",
+        };
 
   const wizardSteps = [
     { id: 0, title: t.stepTarget },
@@ -133,20 +250,24 @@ export function App() {
         preset: preset.i18n?.[wizard.language]?.name ?? preset.name,
         sourceLabel: provider.sourceLabel ?? preset.sourceLabel ?? "Inline rules",
         sourceUrl: provider.url ?? provider.sourceUrl ?? preset.sourceUrl ?? "",
+        isRemote: false,
+        remoteId: "",
       })),
     ),
     ...selectedRemoteItems.map((item) => ({
       key: `remote-${item.id}`,
-      providerName: item.providerName,
+      providerName: getRemoteDisplayName(item, wizard.remoteRuleAliases[item.id]),
       preset: item.kind === "geosite" ? t.remoteKindGeosite : t.remoteKindGeoip,
       sourceLabel: item.sourceLabel,
       sourceUrl: item.url,
+      isRemote: true,
+      remoteId: item.id,
     })),
   ];
   const bundlePresets = selectedPresets.filter((preset) => preset.style !== "service");
   const servicePresets = selectedPresets.filter((preset) => preset.style === "service");
   const policyTargetOptions = getPolicyTargetOptions(wizard, wizard.language);
-  const activeGroupTargetIds = getActiveGroupTargetIds(wizard);
+  const editableGroupTargetIds = getAllGroupTargetIds(wizard);
   const selectedRoutingItems = [
     ...selectedPresets.map((preset) => ({
       key: `preset:${preset.id}`,
@@ -156,11 +277,11 @@ export function App() {
     })),
     ...selectedRemoteItems.map((item) => ({
       key: `remote:${item.id}`,
-      title: item.providerName,
+      title: getRemoteDisplayName(item, wizard.remoteRuleAliases[item.id]),
       description:
         item.kind === "geoip"
-          ? `${t.remoteKindGeoip} · ${item.name}`
-          : `${t.remoteKindGeosite} · ${item.name}`,
+          ? `${t.remoteKindGeoip} ${item.name}`
+          : `${t.remoteKindGeosite} ${item.name}`,
       sourceLabel: item.sourceLabel,
     })),
   ];
@@ -252,9 +373,11 @@ export function App() {
         ? current.selectedRemoteRuleIds.filter((id) => id !== item.id)
         : [...current.selectedRemoteRuleIds, item.id];
       const nextAssignments = { ...current.ruleAssignments };
+      const nextAliases = { ...current.remoteRuleAliases };
 
       if (exists) {
         delete nextAssignments[`remote:${item.id}`];
+        delete nextAliases[item.id];
       } else {
         nextAssignments[`remote:${item.id}`] = suggestTargetForRemoteRule(item);
       }
@@ -263,8 +386,64 @@ export function App() {
         ...current,
         selectedRemoteRuleIds,
         ruleAssignments: nextAssignments,
+        remoteRuleAliases: nextAliases,
       };
     });
+  }
+
+  function updateRemoteAlias(id: string, value: string) {
+    setWizard((current) => ({
+      ...current,
+      remoteRuleAliases: {
+        ...current.remoteRuleAliases,
+        [id]: value,
+      },
+    }));
+  }
+
+  function addCustomGroup() {
+    setWizard((current) => {
+      const id = createCustomGroupId(current.customGroups);
+      return {
+        ...current,
+        customGroups: [
+          ...current.customGroups,
+          {
+            id,
+            name: createCustomGroupName(current.customGroups.length + 1, current.language),
+          },
+        ],
+      };
+    });
+  }
+
+  function updateCustomGroupName(groupId: string, value: string) {
+    setWizard((current) => ({
+      ...current,
+      customGroups: current.customGroups.map((group) =>
+        group.id === groupId ? { ...group, name: value } : group,
+      ),
+    }));
+  }
+
+  function removeCustomGroup(groupId: string) {
+    const targetId = `group-custom:${groupId}` as WizardPolicyTargetId;
+    setWizard((current) => ({
+      ...current,
+      customGroups: current.customGroups.filter((group) => group.id !== groupId),
+      ruleAssignments: Object.fromEntries(
+        Object.entries(current.ruleAssignments).map(([key, value]) => [
+          key,
+          value === targetId ? "group-default-proxy" : value,
+        ]),
+      ) as Record<string, WizardPolicyTargetId>,
+      processRules: current.processRules.map((rule) =>
+        rule.target === targetId ? { ...rule, target: "group-default-proxy" } : rule,
+      ),
+      customDomainRules: current.customDomainRules.map((rule) =>
+        rule.target === targetId ? { ...rule, target: "group-default-proxy" } : rule,
+      ),
+    }));
   }
 
   async function refreshRunningProcesses() {
@@ -280,6 +459,85 @@ export function App() {
       setProcessStatus("error");
       setProcessError(error instanceof Error ? error.message : t.processLoadFailed);
     }
+  }
+
+  function updateRuleAssignment(key: string, value: WizardPolicyTargetId) {
+    setWizard((current) => ({
+      ...current,
+      ruleAssignments: {
+        ...current.ruleAssignments,
+        [key]: value,
+      },
+    }));
+  }
+
+  function addProcessRule() {
+    setWizard((current) => ({
+      ...current,
+      processRules: [...current.processRules, createProcessRuleDraft(current.processRules.length + 1)],
+    }));
+  }
+
+  function updateProcessRule(ruleId: string, patch: Partial<WizardProcessRule>) {
+    setWizard((current) => ({
+      ...current,
+      processRules: current.processRules.map((rule) =>
+        rule.id === ruleId ? { ...rule, ...patch } : rule,
+      ),
+    }));
+  }
+
+  function removeProcessRule(ruleId: string) {
+    setWizard((current) => ({
+      ...current,
+      processRules:
+        current.processRules.length > 1
+          ? current.processRules.filter((rule) => rule.id !== ruleId)
+          : [createProcessRuleDraft(1)],
+    }));
+  }
+
+  function addDomainRule() {
+    setWizard((current) => ({
+      ...current,
+      customDomainRules: [
+        ...current.customDomainRules,
+        createDomainRuleDraft(current.customDomainRules.length + 1),
+      ],
+    }));
+  }
+
+  function updateDomainRule(ruleId: string, patch: Partial<WizardDomainRule>) {
+    setWizard((current) => ({
+      ...current,
+      customDomainRules: current.customDomainRules.map((rule) =>
+        rule.id === ruleId ? { ...rule, ...patch } : rule,
+      ),
+    }));
+  }
+
+  function removeDomainRule(ruleId: string) {
+    setWizard((current) => ({
+      ...current,
+      customDomainRules:
+        current.customDomainRules.length > 1
+          ? current.customDomainRules.filter((rule) => rule.id !== ruleId)
+          : [createDomainRuleDraft(1)],
+    }));
+  }
+
+  function moveDomainRule(ruleId: string, delta: -1 | 1) {
+    setWizard((current) => {
+      const index = current.customDomainRules.findIndex((rule) => rule.id === ruleId);
+      if (index === -1) {
+        return current;
+      }
+
+      return {
+        ...current,
+        customDomainRules: shiftItem(current.customDomainRules, index, delta),
+      };
+    });
   }
 
   function exportProjectJson() {
@@ -318,22 +576,7 @@ export function App() {
     try {
       const text = await file.text();
       const parsed = builderProjectSchema.parse(JSON.parse(text));
-      const selectedPresetIds = presetPacks
-        .filter((preset) =>
-          preset.ruleProviders.some((provider) =>
-            parsed.ruleProviders.some((item) => item.name === provider.name),
-          ),
-        )
-        .map((preset) => preset.id);
-      const selectedRemoteRuleIds = parsed.ruleProviders
-        .map((provider) => provider.name)
-        .filter((name) => name.startsWith("geosite:") || name.startsWith("geoip:"));
 
-      const nextAssignments: Record<string, WizardPolicyTargetId> = {};
-      const customDomainRule = parsed.rules.find((rule) =>
-        rule.id.startsWith("rule-custom-domain-"),
-      );
-      const processRule = parsed.rules.find((rule) => rule.match.kind === "process_name");
       const customGroups = parsed.groups
         .filter(
           (group) =>
@@ -350,35 +593,83 @@ export function App() {
             : `imported-${index + 1}`,
           name: group.name,
         }));
-      const importedState = {
+
+      const importedStateForPolicies = {
         ...defaultWizardState,
         defaultProxyGroupName:
           parsed.groups.find((group) => group.id === "group-default-proxy")?.name ??
-          "Default Proxy",
+          defaultWizardState.defaultProxyGroupName,
         aiGroupName:
           parsed.groups.find((group) => group.id === "group-ai-services")?.name ??
-          "AI Services",
+          defaultWizardState.aiGroupName,
         streamingGroupName:
           parsed.groups.find((group) => group.id === "group-streaming")?.name ??
-          "Streaming",
+          defaultWizardState.streamingGroupName,
         appleGroupName:
-          parsed.groups.find((group) => group.id === "group-apple")?.name ?? "Apple",
+          parsed.groups.find((group) => group.id === "group-apple")?.name ??
+          defaultWizardState.appleGroupName,
         customGroups,
       };
+
+      const selectedPresetIds = presetPacks
+        .filter((preset) =>
+          preset.ruleProviders.some((provider) =>
+            parsed.ruleProviders.some((item) => item.name === provider.name),
+          ),
+        )
+        .map((preset) => preset.id);
+
+      const remoteProviderEntries = parsed.ruleProviders
+        .map((provider) => ({ provider, remote: extractRemoteRuleInfo(provider) }))
+        .filter(
+          (entry): entry is {
+            provider: (typeof parsed.ruleProviders)[number];
+            remote: { id: string; alias: string };
+          } => Boolean(entry.remote),
+        );
+
+      const selectedRemoteRuleIds = remoteProviderEntries.map((entry) => entry.remote.id);
+      const remoteRuleAliases = Object.fromEntries(
+        remoteProviderEntries
+          .filter((entry) => entry.remote.alias)
+          .map((entry) => [entry.remote.id, entry.remote.alias]),
+      ) as Record<string, string>;
+
+      const nextAssignments: Record<string, WizardPolicyTargetId> = {};
+
       selectedPresetIds.forEach((presetId) => {
         const preset = presetPacks.find((item) => item.id === presetId);
         const firstProviderName = preset?.ruleProviders[0]?.name;
         const matchedRule = parsed.rules.find((rule) => rule.match.value === firstProviderName);
         nextAssignments[`preset:${presetId}`] = matchedRule
-          ? policyRefToTargetId(matchedRule.policy, importedState)
+          ? policyRefToTargetId(matchedRule.policy, importedStateForPolicies)
           : "group-default-proxy";
       });
-      selectedRemoteRuleIds.forEach((remoteId) => {
-        const matchedRule = parsed.rules.find((rule) => rule.match.value === remoteId);
-        nextAssignments[`remote:${remoteId}`] = matchedRule
-          ? policyRefToTargetId(matchedRule.policy, importedState)
+
+      remoteProviderEntries.forEach((entry) => {
+        const matchedRule = parsed.rules.find((rule) => rule.match.value === entry.provider.name);
+        nextAssignments[`remote:${entry.remote.id}`] = matchedRule
+          ? policyRefToTargetId(matchedRule.policy, importedStateForPolicies)
           : "group-default-proxy";
       });
+
+      const processRules = parsed.rules
+        .filter((rule) => rule.match.kind === "process_name")
+        .sort((left, right) => left.priority - right.priority)
+        .map((rule, index) => ({
+          id: `process-rule-imported-${index + 1}`,
+          processName: rule.match.value ?? "",
+          target: policyRefToTargetId(rule.policy, importedStateForPolicies),
+        }));
+
+      const customDomainRules = parsed.rules
+        .filter((rule) => rule.id.startsWith("rule-custom-domain-"))
+        .sort((left, right) => left.priority - right.priority)
+        .map((rule, index) => ({
+          id: `domain-rule-imported-${index + 1}`,
+          domain: rule.match.value ?? "",
+          target: policyRefToTargetId(rule.policy, importedStateForPolicies),
+        }));
 
       setWizard({
         language: wizard.language,
@@ -387,15 +678,12 @@ export function App() {
         mode: parsed.meta.mode,
         selectedPresetIds,
         selectedRemoteRuleIds,
+        remoteRuleAliases,
         ruleAssignments: nextAssignments,
-        defaultProxyGroupName:
-          importedState.defaultProxyGroupName,
-        aiGroupName:
-          importedState.aiGroupName,
-        streamingGroupName:
-          importedState.streamingGroupName,
-        appleGroupName:
-          importedState.appleGroupName,
+        defaultProxyGroupName: importedStateForPolicies.defaultProxyGroupName,
+        aiGroupName: importedStateForPolicies.aiGroupName,
+        streamingGroupName: importedStateForPolicies.streamingGroupName,
+        appleGroupName: importedStateForPolicies.appleGroupName,
         customGroups,
         finalPolicyMode:
           parsed.settings.finalPolicy.kind === "builtin" &&
@@ -405,19 +693,12 @@ export function App() {
         enableLanDirect: parsed.settings.enableLanDirect,
         lanCidr:
           parsed.rules.find((rule) => rule.match.kind === "src_ip_cidr")?.match.value ??
-          "192.168.1.0/24",
-        processName: processRule?.match.value ?? "",
-        processTarget: processRule
-          ? policyRefToTargetId(processRule.policy, importedState)
-          : "group-default-proxy",
-        customDomains: parsed.rules
-          .filter((rule) => rule.id.startsWith("rule-custom-domain-"))
-          .map((rule) => rule.match.value ?? "")
-          .join("\n"),
-        customDomainTarget: customDomainRule
-          ? policyRefToTargetId(customDomainRule.policy, importedState)
-          : "group-default-proxy",
+          defaultWizardState.lanCidr,
+        processRules: processRules.length > 0 ? processRules : [createProcessRuleDraft(1)],
+        customDomainRules:
+          customDomainRules.length > 0 ? customDomainRules : [createDomainRuleDraft(1)],
       });
+
       setImportMessage(`${t.imported} ${file.name}`);
       goToStep(4);
     } catch (error) {
@@ -575,17 +856,19 @@ export function App() {
                     <option value="direct">{t.direct}</option>
                   </select>
                 </label>
-                <div className="hint">
-                  <strong>{capability.label}</strong>
+              </article>
+
+              <article className="panel">
+                <h2>{t.tip}</h2>
+                <div className="hint stack">
+                  <span>{t.presetTip}</span>
                   <span>
                     {capability.supports.processRule
                       ? t.processRulesSupported
                       : t.processRulesUnsupported}
                   </span>
                   <span>
-                    {capability.supports.srcIpRule
-                      ? t.srcIpRulesSupported
-                      : t.srcIpRulesUnsupported}
+                    {capability.supports.srcIpRule ? t.srcIpRulesSupported : t.srcIpRulesUnsupported}
                   </span>
                 </div>
               </article>
@@ -596,48 +879,39 @@ export function App() {
             <section className="grid">
               <article className="panel">
                 <h2>{t.step3}</h2>
-                <div className="hint hint-compact">
+                <div className="hint stack hint-compact">
                   <strong>{t.tip}</strong>
                   <span>{t.presetTip}</span>
                 </div>
 
-                <div className="catalog-block">
-                  <div className="catalog-header">
-                    <h3>{t.quickPresets}</h3>
-                  </div>
-                  <div className="stack">
-                    {groupedPresets.map(([category, presets]) => (
-                      <div className="preset-group" key={category}>
-                        <h3>{presetCategoryLabels[category as keyof typeof presetCategoryLabels]}</h3>
-                        <div className="stack">
-                          {presets.map((preset) => {
-                            const localized = preset.i18n?.[wizard.language];
-                            return (
-                              <label className="check-row" key={preset.id}>
-                                <input
-                                  checked={wizard.selectedPresetIds.includes(preset.id)}
-                                  onChange={() => togglePreset(preset.id)}
-                                  type="checkbox"
-                                />
-                                <span>
-                                  <strong>{localized?.name ?? preset.name}</strong>
-                                  <small>{localized?.description ?? preset.description}</small>
-                                  <small>
-                                    {preset.style === "service" ? t.typeService : t.typeBundle}
-                                  </small>
-                                  {preset.sourceLabel ? (
-                                    <small>
-                                      {t.source}: {preset.sourceLabel}
-                                    </small>
-                                  ) : null}
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="stack">
+                  <h3>{t.quickPresets}</h3>
+                  {groupedPresets.map(([category, presets]) => (
+                    <div className="preset-group" key={category}>
+                      <h3>{presetCategoryLabels[category as keyof typeof presetCategoryLabels] ?? category}</h3>
+                      {presets.map((preset) => (
+                        <label className="check-row" key={preset.id}>
+                          <input
+                            checked={wizard.selectedPresetIds.includes(preset.id)}
+                            onChange={() => togglePreset(preset.id)}
+                            type="checkbox"
+                          />
+                          <span>
+                            <strong>{preset.i18n?.[wizard.language]?.name ?? preset.name}</strong>
+                            <small>
+                              {preset.i18n?.[wizard.language]?.description ?? preset.description}
+                            </small>
+                            <small>
+                              {preset.style === "service" ? t.typeService : t.typeBundle}
+                            </small>
+                            <small>
+                              {t.source}: {preset.sourceLabel ?? "MetaCubeX meta-rules-dat"}
+                            </small>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  ))}
                 </div>
 
                 <div className="catalog-block">
@@ -652,11 +926,15 @@ export function App() {
                       onClick={() => void syncRemoteRules()}
                       disabled={remoteStatus === "loading"}
                     >
-                      {remoteCatalog.length > 0 ? t.refreshRemoteRules : t.syncRemoteRules}
+                      {remoteStatus === "ready" ? t.refreshRemoteRules : t.syncRemoteRules}
                     </button>
                   </div>
-                  {remoteStatus === "loading" ? (
-                    <p className="helper-text">{t.syncingRemoteRules}</p>
+
+                  {remoteStatus === "loading" ? <p>{t.syncingRemoteRules}</p> : null}
+                  {remoteStatus === "ready" && lastSyncedAt ? (
+                    <p className="helper-text">
+                      {t.lastSyncedAt}: {formatSyncTime(lastSyncedAt, wizard.language)}
+                    </p>
                   ) : null}
                   {remoteStatus === "error" ? (
                     <p className="helper-text">
@@ -664,26 +942,21 @@ export function App() {
                       {remoteError ? ` ${remoteError}` : ""}
                     </p>
                   ) : null}
-                  {lastSyncedAt ? (
-                    <p className="helper-text">
-                      {t.lastSyncedAt}: {formatSyncTime(lastSyncedAt, wizard.language)}
-                    </p>
-                  ) : null}
+
                   <label className="field">
                     <span>{t.searchRemoteRules}</span>
                     <input
                       value={remoteQuery}
-                      placeholder={t.searchRemoteRulesPlaceholder}
                       onChange={(event) => setRemoteQuery(event.target.value)}
+                      placeholder={t.searchRemoteRulesPlaceholder}
                     />
                   </label>
-                  {remoteCatalog.length === 0 && remoteStatus !== "loading" ? (
-                    <p className="empty-state">{t.noRemoteRulesYet}</p>
+
+                  {remoteStatus === "ready" && filteredRemoteCatalog.length === 0 ? (
+                    <p>{remoteQuery.trim() ? t.noRemoteMatches : t.noRemoteRulesYet}</p>
                   ) : null}
-                  {remoteCatalog.length > 0 && filteredRemoteCatalog.length === 0 ? (
-                    <p className="empty-state">{t.noRemoteMatches}</p>
-                  ) : null}
-                  {filteredRemoteCatalog.length > 0 ? (
+
+                  {remoteStatus === "ready" ? (
                     <div className="remote-rule-list">
                       {filteredRemoteCatalog.map((item) => (
                         <label className="check-row remote-rule-row" key={item.id}>
@@ -725,7 +998,19 @@ export function App() {
                   <div className="stack source-stack">
                     {selectedSources.map((source) => (
                       <div className="source-card" key={source.key}>
-                        <strong>{source.providerName}</strong>
+                        {source.isRemote ? (
+                          <label className="field compact-field">
+                            <span>{ux.remoteAlias}</span>
+                            <input
+                              value={wizard.remoteRuleAliases[source.remoteId] ?? source.providerName}
+                              onChange={(event) => updateRemoteAlias(source.remoteId, event.target.value)}
+                              placeholder={ux.renamePlaceholder}
+                            />
+                            <small>{ux.remoteAliasHelp}</small>
+                          </label>
+                        ) : (
+                          <strong>{source.providerName}</strong>
+                        )}
                         <span>{source.preset}</span>
                         <small>{source.sourceLabel}</small>
                         {source.sourceUrl ? (
@@ -749,9 +1034,9 @@ export function App() {
                 <div className="section-block">
                   <div className="section-heading">
                     <h3>{t.routingGroupSection}</h3>
-                    <p>{t.routingGroupSectionHelp}</p>
+                    <p>{ux.customGroupAlwaysVisible}</p>
                   </div>
-                  {activeGroupTargetIds.map((targetId) => {
+                  {editableGroupTargetIds.map((targetId) => {
                     if (targetId === "group-default-proxy") {
                       return (
                         <label className="field" key={targetId}>
@@ -824,42 +1109,28 @@ export function App() {
                     const customGroup = wizard.customGroups.find((group) => group.id === customId);
 
                     return (
-                      <label className="field" key={targetId}>
-                        <span>{customGroup?.name ?? targetId}</span>
-                        <input
-                          value={customGroup?.name ?? ""}
-                          onChange={(event) =>
-                            setWizard((current) => ({
-                              ...current,
-                              customGroups: current.customGroups.map((group) =>
-                                group.id === customId
-                                  ? { ...group, name: event.target.value }
-                                  : group,
-                              ),
-                            }))
-                          }
-                        />
-                      </label>
+                      <div className="inline-field-row" key={targetId}>
+                        <label className="field inline-field-grow">
+                          <span>{customGroup?.name ?? targetId}</span>
+                          <input
+                            value={customGroup?.name ?? ""}
+                            onChange={(event) => updateCustomGroupName(customId, event.target.value)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="action-button action-button-ghost inline-remove-button"
+                          onClick={() => removeCustomGroup(customId)}
+                        >
+                          {ux.removeGroup}
+                        </button>
+                      </div>
                     );
                   })}
                   <button
                     type="button"
                     className="action-button action-button-ghost"
-                    onClick={() =>
-                      setWizard((current) => {
-                        const id = createCustomGroupId(current.customGroups);
-                        return {
-                          ...current,
-                          customGroups: [
-                            ...current.customGroups,
-                            {
-                              id,
-                              name: createCustomGroupName(current.customGroups.length + 1, current.language),
-                            },
-                          ],
-                        };
-                      })
-                    }
+                    onClick={addCustomGroup}
                   >
                     {t.addCustomGroup}
                   </button>
@@ -883,13 +1154,7 @@ export function App() {
                           <select
                             value={wizard.ruleAssignments[item.key] ?? "group-default-proxy"}
                             onChange={(event) =>
-                              setWizard((current) => ({
-                                ...current,
-                                ruleAssignments: {
-                                  ...current.ruleAssignments,
-                                  [item.key]: event.target.value as WizardPolicyTargetId,
-                                },
-                              }))
+                              updateRuleAssignment(item.key, event.target.value as WizardPolicyTargetId)
                             }
                           >
                             {policyTargetOptions.map((option) => (
@@ -939,24 +1204,73 @@ export function App() {
                 <div className="section-block">
                   <div className="section-heading">
                     <h3>{t.processSection}</h3>
-                    <p>{t.processSectionHelp}</p>
+                    <p>{showProcessSection ? ux.processRulesMatrixHelp : t.processRoutingUnavailable}</p>
                   </div>
                   {showProcessSection ? (
                     <>
-                      <label className="field">
-                        <span>{t.processName}</span>
-                        <input
-                          value={wizard.processName}
-                          onChange={(event) =>
-                            setWizard((current) => ({
-                              ...current,
-                              processName: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                      <p className="helper-text">{t.processNameHelp}</p>
-                      <div className="process-picker-row">
+                      <p className="helper-text">{ux.processRowHint}</p>
+                      <div className="matrix-list">
+                        {wizard.processRules.map((rule) => (
+                          <div className="matrix-row matrix-row-two-col" key={rule.id}>
+                            <div className="matrix-main-grid">
+                              <label className="field compact-field">
+                                <span>{ux.processColumn}</span>
+                                <input
+                                  value={rule.processName}
+                                  onChange={(event) =>
+                                    updateProcessRule(rule.id, { processName: event.target.value })
+                                  }
+                                />
+                              </label>
+                              <label className="field compact-field">
+                                <span>{ux.targetColumn}</span>
+                                <select
+                                  value={rule.target}
+                                  onChange={(event) =>
+                                    updateProcessRule(rule.id, {
+                                      target: event.target.value as WizardPolicyTargetId,
+                                    })
+                                  }
+                                >
+                                  {policyTargetOptions.map((option) => (
+                                    <option key={option.id} value={option.id}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                            <div className="matrix-actions-row">
+                              <select
+                                className="process-select"
+                                value=""
+                                onChange={(event) => {
+                                  if (!event.target.value) {
+                                    return;
+                                  }
+                                  updateProcessRule(rule.id, { processName: event.target.value });
+                                }}
+                                disabled={runningProcesses.length === 0}
+                              >
+                                <option value="">{ux.chooseRunningProcess}</option>
+                                {runningProcesses.map((processName) => (
+                                  <option key={`${rule.id}-${processName}`} value={processName}>
+                                    {processName}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                className="action-button action-button-ghost"
+                                type="button"
+                                onClick={() => removeProcessRule(rule.id)}
+                              >
+                                {ux.removeRule}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="action-row">
                         <button
                           className="action-button action-button-ghost"
                           type="button"
@@ -965,50 +1279,15 @@ export function App() {
                         >
                           {runningProcesses.length > 0 ? t.refreshProcesses : t.detectProcesses}
                         </button>
-                        <select
-                          className="process-select"
-                          value=""
-                          onChange={(event) => {
-                            if (!event.target.value) {
-                              return;
-                            }
-
-                            setWizard((current) => ({
-                              ...current,
-                              processName: event.target.value,
-                            }));
-                          }}
-                          disabled={runningProcesses.length === 0}
+                        <button
+                          className="action-button action-button-ghost"
+                          type="button"
+                          onClick={addProcessRule}
                         >
-                          <option value="">{t.chooseProcess}</option>
-                          {runningProcesses.map((processName) => (
-                            <option key={processName} value={processName}>
-                              {processName}
-                            </option>
-                          ))}
-                        </select>
+                          {ux.addProcessRule}
+                        </button>
                       </div>
-                      <label className="field">
-                        <span>{t.processTarget}</span>
-                        <select
-                          value={wizard.processTarget}
-                          onChange={(event) =>
-                            setWizard((current) => ({
-                              ...current,
-                              processTarget: event.target.value as WizardPolicyTargetId,
-                            }))
-                          }
-                        >
-                          {policyTargetOptions.map((option) => (
-                            <option key={option.id} value={option.id}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {processStatus === "loading" ? (
-                        <p className="helper-text">{t.loadingProcesses}</p>
-                      ) : null}
+                      {processStatus === "loading" ? <p className="helper-text">{t.loadingProcesses}</p> : null}
                       {processStatus === "ready" && runningProcesses.length === 0 ? (
                         <p className="helper-text">{t.noProcessesFound}</p>
                       ) : null}
@@ -1019,47 +1298,102 @@ export function App() {
                         </p>
                       ) : null}
                     </>
-                  ) : (
-                    <p className="helper-text">{t.processRoutingUnavailable}</p>
-                  )}
+                  ) : null}
                 </div>
 
                 <div className="section-block">
                   <div className="section-heading">
                     <h3>{t.customDomainSection}</h3>
-                    <p>{t.customDomainSectionHelp}</p>
+                    <p>{ux.domainRulesMatrixHelp}</p>
                   </div>
-                  <label className="field">
-                    <span>{t.customDomainTarget}</span>
-                    <select
-                      value={wizard.customDomainTarget}
-                      onChange={(event) =>
-                        setWizard((current) => ({
-                          ...current,
-                          customDomainTarget: event.target.value as WizardPolicyTargetId,
-                        }))
-                      }
-                    >
-                      {policyTargetOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>{t.customDomains}</span>
-                    <textarea
-                      rows={6}
-                      value={wizard.customDomains}
-                      onChange={(event) =>
-                        setWizard((current) => ({
-                          ...current,
-                          customDomains: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
+                  <p className="helper-text">{ux.dragHint}</p>
+                  <div className="matrix-list">
+                    {wizard.customDomainRules.map((rule, index) => (
+                      <div
+                        className={`matrix-row matrix-row-sortable ${draggedDomainRuleId === rule.id ? "matrix-row-dragging" : ""}`}
+                        key={rule.id}
+                        draggable
+                        onDragStart={() => setDraggedDomainRuleId(rule.id)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={() => {
+                          if (!draggedDomainRuleId) {
+                            return;
+                          }
+
+                          setWizard((current) => ({
+                            ...current,
+                            customDomainRules: moveItem(current.customDomainRules, draggedDomainRuleId, rule.id),
+                          }));
+                          setDraggedDomainRuleId(null);
+                        }}
+                        onDragEnd={() => setDraggedDomainRuleId(null)}
+                      >
+                        <div className="drag-handle" title={ux.domainDragHandle}>
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                        <div className="matrix-main-grid">
+                          <label className="field compact-field">
+                            <span>{ux.domainColumn}</span>
+                            <input
+                              value={rule.domain}
+                              onChange={(event) => updateDomainRule(rule.id, { domain: event.target.value })}
+                            />
+                          </label>
+                          <label className="field compact-field">
+                            <span>{ux.targetColumn}</span>
+                            <select
+                              value={rule.target}
+                              onChange={(event) =>
+                                updateDomainRule(rule.id, {
+                                  target: event.target.value as WizardPolicyTargetId,
+                                })
+                              }
+                            >
+                              {policyTargetOptions.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        <div className="matrix-actions-column">
+                          <button
+                            className="action-button action-button-ghost"
+                            type="button"
+                            onClick={() => moveDomainRule(rule.id, -1)}
+                            disabled={index === 0}
+                          >
+                            {ux.moveUp}
+                          </button>
+                          <button
+                            className="action-button action-button-ghost"
+                            type="button"
+                            onClick={() => moveDomainRule(rule.id, 1)}
+                            disabled={index === wizard.customDomainRules.length - 1}
+                          >
+                            {ux.moveDown}
+                          </button>
+                          <button
+                            className="action-button action-button-ghost"
+                            type="button"
+                            onClick={() => removeDomainRule(rule.id)}
+                          >
+                            {ux.removeRule}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    className="action-button action-button-ghost"
+                    type="button"
+                    onClick={addDomainRule}
+                  >
+                    {ux.addDomainRule}
+                  </button>
                 </div>
               </article>
             </section>
