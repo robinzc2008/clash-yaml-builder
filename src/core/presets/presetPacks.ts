@@ -15,6 +15,7 @@ export interface PresetPack {
     | "communication"
     | "ecosystem"
     | "security";
+  style?: "bundle" | "service";
   description: string;
   supportedTargets: Array<"openclash" | "windows-mihomo" | "sparkle">;
   groups: GroupSpec[];
@@ -29,6 +30,7 @@ export const presetPacks: PresetPack[] = [
     id: "preset-cn-direct",
     name: "China Direct",
     category: "foundation",
+    style: "bundle",
     description: "Uses the upstream CN geosite ruleset for direct routing.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -61,6 +63,7 @@ export const presetPacks: PresetPack[] = [
     id: "preset-ai-routing",
     name: "AI Services",
     category: "ai",
+    style: "bundle",
     description: "Routes mainstream AI services through a dedicated policy group.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -100,9 +103,136 @@ export const presetPacks: PresetPack[] = [
     ],
   },
   {
+    id: "preset-openai",
+    name: "OpenAI",
+    category: "ai",
+    style: "service",
+    description: "Routes OpenAI domains through a dedicated AI policy group.",
+    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    sourceLabel: "MetaCubeX meta-rules-dat",
+    sourceUrl: META_RULES_DAT_REPO,
+    groups: [
+      {
+        id: "group-ai-services",
+        name: "AI Services",
+        type: "select",
+        members: [
+          { kind: "group", ref: "group-default-proxy" },
+          { kind: "builtin", value: "DIRECT" },
+        ],
+      },
+    ],
+    ruleProviders: [
+      {
+        id: "preset-rule-provider-openai",
+        name: "OpenAI",
+        sourceType: "http",
+        behavior: "domain",
+        format: "yaml",
+        interval: 86400,
+        url: metaRulesDatCatalog.openai.url,
+        sourceLabel: "MetaCubeX geosite:openai",
+        sourceUrl: META_RULES_DAT_REPO,
+      },
+    ],
+    rules: [
+      {
+        id: "preset-rule-openai",
+        match: { kind: "rule_set", value: "OpenAI" },
+        policy: { kind: "group", value: "AI Services" },
+        priority: 51,
+        enabled: true,
+      },
+    ],
+  },
+  {
+    id: "preset-claude",
+    name: "Claude",
+    category: "ai",
+    style: "service",
+    description: "Routes Claude and Anthropic domains through the AI policy group.",
+    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    groups: [
+      {
+        id: "group-ai-services",
+        name: "AI Services",
+        type: "select",
+        members: [
+          { kind: "group", ref: "group-default-proxy" },
+          { kind: "builtin", value: "DIRECT" },
+        ],
+      },
+    ],
+    ruleProviders: [
+      {
+        id: "preset-rule-provider-claude",
+        name: "Claude",
+        sourceType: "inline",
+        behavior: "classical",
+        payload: [
+          "DOMAIN-SUFFIX,claude.ai",
+          "DOMAIN-SUFFIX,anthropic.com",
+        ],
+        sourceLabel: "Built-in inline domains",
+      },
+    ],
+    rules: [
+      {
+        id: "preset-rule-claude",
+        match: { kind: "rule_set", value: "Claude" },
+        policy: { kind: "group", value: "AI Services" },
+        priority: 52,
+        enabled: true,
+      },
+    ],
+  },
+  {
+    id: "preset-gemini",
+    name: "Gemini",
+    category: "ai",
+    style: "service",
+    description: "Routes Gemini domains through the AI policy group.",
+    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    groups: [
+      {
+        id: "group-ai-services",
+        name: "AI Services",
+        type: "select",
+        members: [
+          { kind: "group", ref: "group-default-proxy" },
+          { kind: "builtin", value: "DIRECT" },
+        ],
+      },
+    ],
+    ruleProviders: [
+      {
+        id: "preset-rule-provider-gemini",
+        name: "Gemini",
+        sourceType: "inline",
+        behavior: "classical",
+        payload: [
+          "DOMAIN-SUFFIX,gemini.google.com",
+          "DOMAIN-SUFFIX,bard.google.com",
+          "DOMAIN-SUFFIX,deepmind.google",
+        ],
+        sourceLabel: "Built-in inline domains",
+      },
+    ],
+    rules: [
+      {
+        id: "preset-rule-gemini",
+        match: { kind: "rule_set", value: "Gemini" },
+        policy: { kind: "group", value: "AI Services" },
+        priority: 53,
+        enabled: true,
+      },
+    ],
+  },
+  {
     id: "preset-github",
     name: "GitHub",
     category: "work",
+    style: "service",
     description: "Routes GitHub domains through the default proxy group.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -135,6 +265,7 @@ export const presetPacks: PresetPack[] = [
     id: "preset-google",
     name: "Google",
     category: "work",
+    style: "service",
     description: "Routes Google search and service domains through the default proxy group.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -167,6 +298,7 @@ export const presetPacks: PresetPack[] = [
     id: "preset-streaming",
     name: "Streaming",
     category: "streaming",
+    style: "bundle",
     description: "Creates a dedicated group for mainstream streaming services.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -224,9 +356,96 @@ export const presetPacks: PresetPack[] = [
     ],
   },
   {
+    id: "preset-netflix",
+    name: "Netflix",
+    category: "streaming",
+    style: "service",
+    description: "Routes Netflix domains through the streaming policy group.",
+    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    sourceLabel: "MetaCubeX meta-rules-dat",
+    sourceUrl: META_RULES_DAT_REPO,
+    groups: [
+      {
+        id: "group-streaming",
+        name: "Streaming",
+        type: "select",
+        members: [
+          { kind: "group", ref: "group-default-proxy" },
+          { kind: "builtin", value: "DIRECT" },
+        ],
+      },
+    ],
+    ruleProviders: [
+      {
+        id: "preset-rule-provider-netflix-single",
+        name: "Netflix",
+        sourceType: "http",
+        behavior: "domain",
+        format: "yaml",
+        interval: 86400,
+        url: metaRulesDatCatalog.netflix.url,
+        sourceLabel: "MetaCubeX geosite:netflix",
+        sourceUrl: META_RULES_DAT_REPO,
+      },
+    ],
+    rules: [
+      {
+        id: "preset-rule-netflix",
+        match: { kind: "rule_set", value: "Netflix" },
+        policy: { kind: "group", value: "Streaming" },
+        priority: 62,
+        enabled: true,
+      },
+    ],
+  },
+  {
+    id: "preset-youtube",
+    name: "YouTube",
+    category: "streaming",
+    style: "service",
+    description: "Routes YouTube domains through the streaming policy group.",
+    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    sourceLabel: "MetaCubeX meta-rules-dat",
+    sourceUrl: META_RULES_DAT_REPO,
+    groups: [
+      {
+        id: "group-streaming",
+        name: "Streaming",
+        type: "select",
+        members: [
+          { kind: "group", ref: "group-default-proxy" },
+          { kind: "builtin", value: "DIRECT" },
+        ],
+      },
+    ],
+    ruleProviders: [
+      {
+        id: "preset-rule-provider-youtube-single",
+        name: "YouTube",
+        sourceType: "http",
+        behavior: "domain",
+        format: "yaml",
+        interval: 86400,
+        url: metaRulesDatCatalog.youtube.url,
+        sourceLabel: "MetaCubeX geosite:youtube",
+        sourceUrl: META_RULES_DAT_REPO,
+      },
+    ],
+    rules: [
+      {
+        id: "preset-rule-youtube",
+        match: { kind: "rule_set", value: "YouTube" },
+        policy: { kind: "group", value: "Streaming" },
+        priority: 63,
+        enabled: true,
+      },
+    ],
+  },
+  {
     id: "preset-telegram",
     name: "Telegram",
     category: "communication",
+    style: "service",
     description: "Routes Telegram domains through the default proxy group.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -259,6 +478,7 @@ export const presetPacks: PresetPack[] = [
     id: "preset-apple",
     name: "Apple",
     category: "ecosystem",
+    style: "service",
     description: "Adds an Apple-focused ruleset for clients that need Apple services split out separately.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -301,6 +521,7 @@ export const presetPacks: PresetPack[] = [
     id: "preset-adblock",
     name: "Ad Block",
     category: "security",
+    style: "bundle",
     description: "Adds a simple reject ruleset for ad domains.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     groups: [],

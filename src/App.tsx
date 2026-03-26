@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createProjectFromWizard } from "./application/createProjectFromWizard";
 import { buildProjectArtifact } from "./application/projectPipeline";
 import { platformCapabilities } from "./core/capabilities/platformCapabilities";
@@ -6,6 +6,11 @@ import { builderProjectSchema } from "./core/model/schema";
 import { presetPacks } from "./core/presets/presetPacks";
 import { defaultWizardState } from "./features/wizard/defaultWizardState";
 import { downloadTextFile } from "./features/wizard/export";
+import {
+  clearWizardDraft,
+  loadWizardDraft,
+  saveWizardDraft,
+} from "./features/wizard/persistence";
 import { targetDefinitions } from "./features/wizard/targetDefinitions";
 import type { TargetPlatform } from "./core/model/types";
 
@@ -28,9 +33,10 @@ const presetCategoryLabels = {
 } as const;
 
 export function App() {
-  const [wizard, setWizard] = useState(defaultWizardState);
+  const initialDraft = loadWizardDraft();
+  const [wizard, setWizard] = useState(initialDraft?.wizard ?? defaultWizardState);
   const [importMessage, setImportMessage] = useState<string>("");
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(initialDraft?.step ?? 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sourceProject = useMemo(() => createProjectFromWizard(wizard), [wizard]);
@@ -57,6 +63,12 @@ export function App() {
       sourceUrl: provider.url ?? provider.sourceUrl ?? preset.sourceUrl ?? "",
     })),
   );
+  const bundlePresets = selectedPresets.filter((preset) => preset.style !== "service");
+  const servicePresets = selectedPresets.filter((preset) => preset.style === "service");
+
+  useEffect(() => {
+    saveWizardDraft(wizard, currentStep);
+  }, [wizard, currentStep]);
 
   function updateTarget(target: TargetPlatform) {
     setWizard((current) => ({
@@ -97,6 +109,13 @@ export function App() {
       rendered.content,
       "text/yaml",
     );
+  }
+
+  function resetWizard() {
+    setWizard(defaultWizardState);
+    setCurrentStep(0);
+    setImportMessage("Draft cleared and reset to defaults.");
+    clearWizardDraft();
   }
 
   async function handleImportProject(event: React.ChangeEvent<HTMLInputElement>) {
@@ -175,6 +194,7 @@ export function App() {
             <span>Project: {wizard.projectName || "Untitled"}</span>
             <span>Presets: {selectedPresets.length}</span>
             <span>Sources: {selectedSources.length}</span>
+            {initialDraft ? <span>Draft restored from local storage.</span> : null}
           </div>
         </aside>
 
@@ -249,6 +269,10 @@ export function App() {
             <section className="grid">
               <article className="panel">
                 <h2>Step 3. Pick Presets</h2>
+                <div className="hint hint-compact">
+                  <strong>Tip</strong>
+                  <span>Bundle presets are quick-start packs. Service presets let users fine-tune one app or service at a time.</span>
+                </div>
                 <div className="stack">
                   {groupedPresets.map(([category, presets]) => (
                     <div className="preset-group" key={category}>
@@ -264,6 +288,7 @@ export function App() {
                             <span>
                               <strong>{preset.name}</strong>
                               <small>{preset.description}</small>
+                              <small>{preset.style === "service" ? "Type: service preset" : "Type: bundle preset"}</small>
                               {preset.sourceLabel ? <small>Source: {preset.sourceLabel}</small> : null}
                             </span>
                           </label>
@@ -276,6 +301,10 @@ export function App() {
 
               <article className="panel">
                 <h2>Source Preview</h2>
+                <div className="source-summary">
+                  <span>Bundles: {bundlePresets.length}</span>
+                  <span>Services: {servicePresets.length}</span>
+                </div>
                 {selectedSources.length === 0 ? (
                   <p>No upstream rule sources selected yet.</p>
                 ) : (
@@ -376,6 +405,13 @@ export function App() {
                       type="button"
                     >
                       Import project JSON
+                    </button>
+                    <button
+                      className="action-button action-button-ghost"
+                      onClick={resetWizard}
+                      type="button"
+                    >
+                      Reset draft
                     </button>
                     <input
                       ref={fileInputRef}
