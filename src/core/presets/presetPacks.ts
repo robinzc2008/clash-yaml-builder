@@ -7,6 +7,14 @@ import {
 export interface PresetPack {
   id: string;
   name: string;
+  category:
+    | "foundation"
+    | "ai"
+    | "work"
+    | "streaming"
+    | "communication"
+    | "ecosystem"
+    | "security";
   description: string;
   supportedTargets: Array<"openclash" | "windows-mihomo" | "sparkle">;
   groups: GroupSpec[];
@@ -18,8 +26,41 @@ export interface PresetPack {
 
 export const presetPacks: PresetPack[] = [
   {
+    id: "preset-cn-direct",
+    name: "China Direct",
+    category: "foundation",
+    description: "Uses the upstream CN geosite ruleset for direct routing.",
+    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    sourceLabel: "MetaCubeX meta-rules-dat",
+    sourceUrl: META_RULES_DAT_REPO,
+    groups: [],
+    ruleProviders: [
+      {
+        id: "preset-rule-provider-cn",
+        name: "China Direct",
+        sourceType: "http",
+        behavior: "domain",
+        format: "yaml",
+        interval: 86400,
+        url: metaRulesDatCatalog.cn.url,
+        sourceLabel: "MetaCubeX geosite:cn",
+        sourceUrl: META_RULES_DAT_REPO,
+      },
+    ],
+    rules: [
+      {
+        id: "preset-rule-cn-direct",
+        match: { kind: "rule_set", value: "China Direct" },
+        policy: { kind: "builtin", value: "DIRECT" },
+        priority: 12,
+        enabled: true,
+      },
+    ],
+  },
+  {
     id: "preset-ai-routing",
     name: "AI Services",
+    category: "ai",
     description: "Routes mainstream AI services through a dedicated policy group.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -59,8 +100,73 @@ export const presetPacks: PresetPack[] = [
     ],
   },
   {
+    id: "preset-github",
+    name: "GitHub",
+    category: "work",
+    description: "Routes GitHub domains through the default proxy group.",
+    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    sourceLabel: "MetaCubeX meta-rules-dat",
+    sourceUrl: META_RULES_DAT_REPO,
+    groups: [],
+    ruleProviders: [
+      {
+        id: "preset-rule-provider-github",
+        name: "GitHub",
+        sourceType: "http",
+        behavior: "domain",
+        format: "yaml",
+        interval: 86400,
+        url: metaRulesDatCatalog.github.url,
+        sourceLabel: "MetaCubeX geosite:github",
+        sourceUrl: META_RULES_DAT_REPO,
+      },
+    ],
+    rules: [
+      {
+        id: "preset-rule-github",
+        match: { kind: "rule_set", value: "GitHub" },
+        policy: { kind: "group", value: "Default Proxy" },
+        priority: 70,
+        enabled: true,
+      },
+    ],
+  },
+  {
+    id: "preset-google",
+    name: "Google",
+    category: "work",
+    description: "Routes Google search and service domains through the default proxy group.",
+    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    sourceLabel: "MetaCubeX meta-rules-dat",
+    sourceUrl: META_RULES_DAT_REPO,
+    groups: [],
+    ruleProviders: [
+      {
+        id: "preset-rule-provider-google",
+        name: "Google",
+        sourceType: "http",
+        behavior: "domain",
+        format: "yaml",
+        interval: 86400,
+        url: metaRulesDatCatalog.google.url,
+        sourceLabel: "MetaCubeX geosite:google",
+        sourceUrl: META_RULES_DAT_REPO,
+      },
+    ],
+    rules: [
+      {
+        id: "preset-rule-google",
+        match: { kind: "rule_set", value: "Google" },
+        policy: { kind: "group", value: "Default Proxy" },
+        priority: 71,
+        enabled: true,
+      },
+    ],
+  },
+  {
     id: "preset-streaming",
     name: "Streaming",
+    category: "streaming",
     description: "Creates a dedicated group for mainstream streaming services.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -118,100 +224,9 @@ export const presetPacks: PresetPack[] = [
     ],
   },
   {
-    id: "preset-adblock",
-    name: "Ad Block",
-    description: "Adds a simple reject ruleset for ad domains.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
-    groups: [],
-    ruleProviders: [
-      {
-        id: "preset-rule-provider-adblock",
-        name: "Ads",
-        sourceType: "inline",
-        behavior: "classical",
-        payload: [
-          "DOMAIN-SUFFIX,doubleclick.net",
-          "DOMAIN-SUFFIX,googlesyndication.com",
-          "DOMAIN-SUFFIX,googletagmanager.com",
-          "DOMAIN-SUFFIX,adservice.google.com",
-        ],
-      },
-    ],
-    rules: [
-      {
-        id: "preset-rule-adblock",
-        match: { kind: "rule_set", value: "Ads" },
-        policy: { kind: "builtin", value: "REJECT" },
-        priority: 15,
-        enabled: true,
-      },
-    ],
-  },
-  {
-    id: "preset-github",
-    name: "GitHub",
-    description: "Routes GitHub domains through the default proxy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
-    sourceLabel: "MetaCubeX meta-rules-dat",
-    sourceUrl: META_RULES_DAT_REPO,
-    groups: [],
-    ruleProviders: [
-      {
-        id: "preset-rule-provider-github",
-        name: "GitHub",
-        sourceType: "http",
-        behavior: "domain",
-        format: "yaml",
-        interval: 86400,
-        url: metaRulesDatCatalog.github.url,
-        sourceLabel: "MetaCubeX geosite:github",
-        sourceUrl: META_RULES_DAT_REPO,
-      },
-    ],
-    rules: [
-      {
-        id: "preset-rule-github",
-        match: { kind: "rule_set", value: "GitHub" },
-        policy: { kind: "group", value: "Default Proxy" },
-        priority: 70,
-        enabled: true,
-      },
-    ],
-  },
-  {
-    id: "preset-google",
-    name: "Google",
-    description: "Routes Google search and service domains through the default proxy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
-    sourceLabel: "MetaCubeX meta-rules-dat",
-    sourceUrl: META_RULES_DAT_REPO,
-    groups: [],
-    ruleProviders: [
-      {
-        id: "preset-rule-provider-google",
-        name: "Google",
-        sourceType: "http",
-        behavior: "domain",
-        format: "yaml",
-        interval: 86400,
-        url: metaRulesDatCatalog.google.url,
-        sourceLabel: "MetaCubeX geosite:google",
-        sourceUrl: META_RULES_DAT_REPO,
-      },
-    ],
-    rules: [
-      {
-        id: "preset-rule-google",
-        match: { kind: "rule_set", value: "Google" },
-        policy: { kind: "group", value: "Default Proxy" },
-        priority: 71,
-        enabled: true,
-      },
-    ],
-  },
-  {
     id: "preset-telegram",
     name: "Telegram",
+    category: "communication",
     description: "Routes Telegram domains through the default proxy group.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -243,6 +258,7 @@ export const presetPacks: PresetPack[] = [
   {
     id: "preset-apple",
     name: "Apple",
+    category: "ecosystem",
     description: "Adds an Apple-focused ruleset for clients that need Apple services split out separately.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
@@ -282,32 +298,32 @@ export const presetPacks: PresetPack[] = [
     ],
   },
   {
-    id: "preset-cn-direct",
-    name: "China Direct",
-    description: "Uses the upstream CN geosite ruleset for direct routing.",
+    id: "preset-adblock",
+    name: "Ad Block",
+    category: "security",
+    description: "Adds a simple reject ruleset for ad domains.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
-    sourceLabel: "MetaCubeX meta-rules-dat",
-    sourceUrl: META_RULES_DAT_REPO,
     groups: [],
     ruleProviders: [
       {
-        id: "preset-rule-provider-cn",
-        name: "China Direct",
-        sourceType: "http",
-        behavior: "domain",
-        format: "yaml",
-        interval: 86400,
-        url: metaRulesDatCatalog.cn.url,
-        sourceLabel: "MetaCubeX geosite:cn",
-        sourceUrl: META_RULES_DAT_REPO,
+        id: "preset-rule-provider-adblock",
+        name: "Ads",
+        sourceType: "inline",
+        behavior: "classical",
+        payload: [
+          "DOMAIN-SUFFIX,doubleclick.net",
+          "DOMAIN-SUFFIX,googlesyndication.com",
+          "DOMAIN-SUFFIX,googletagmanager.com",
+          "DOMAIN-SUFFIX,adservice.google.com",
+        ],
       },
     ],
     rules: [
       {
-        id: "preset-rule-cn-direct",
-        match: { kind: "rule_set", value: "China Direct" },
-        policy: { kind: "builtin", value: "DIRECT" },
-        priority: 12,
+        id: "preset-rule-adblock",
+        match: { kind: "rule_set", value: "Ads" },
+        policy: { kind: "builtin", value: "REJECT" },
+        priority: 15,
         enabled: true,
       },
     ],

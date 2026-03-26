@@ -66,11 +66,27 @@ ul {
   color: #35516f;
 }
 
+.wizard-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.wizard-sidebar {
+  position: sticky;
+  top: 20px;
+}
+
+.wizard-main {
+  display: grid;
+  gap: 20px;
+}
+
 .grid {
   display: grid;
   gap: 20px;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  margin-bottom: 20px;
 }
 
 .grid-wide {
@@ -90,14 +106,52 @@ ul {
   margin-bottom: 10px;
 }
 
-.panel-lede {
-  margin-top: 0;
-  color: #35516f;
-}
-
 .stack {
   display: grid;
   gap: 14px;
+}
+
+.step-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.step-chip {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  border: 1px solid rgba(16, 35, 63, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.step-chip span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(16, 35, 63, 0.08);
+}
+
+.step-chip-active {
+  border-color: #2d649f;
+  box-shadow: inset 0 0 0 1px #2d649f;
+}
+
+.summary-box {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(216, 230, 242, 0.5);
+  color: #35516f;
 }
 
 .target-grid {
@@ -158,12 +212,37 @@ ul {
   gap: 2px;
 }
 
+.preset-group {
+  display: grid;
+  gap: 12px;
+}
+
+.preset-group h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #123d69;
+}
+
 .check-row small,
 .hint span,
 .target-card span,
 .target-card small,
 .import-message {
   color: #35516f;
+}
+
+.source-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(216, 230, 242, 0.38);
+}
+
+.source-card a {
+  color: #2d649f;
+  text-decoration: none;
+  word-break: break-all;
 }
 
 .hint {
@@ -203,6 +282,16 @@ ul {
   display: none;
 }
 
+.wizard-controls {
+  display: flex;
+  justify-content: space-between;
+}
+
+.wizard-controls .action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .app-shell {
     width: min(100% - 20px, 1200px);
@@ -213,5 +302,13 @@ ul {
   .panel {
     padding: 18px;
     border-radius: 18px;
+  }
+
+  .wizard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-sidebar {
+    position: static;
   }
 }
