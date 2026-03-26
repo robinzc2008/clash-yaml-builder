@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createProjectFromWizard } from "./application/createProjectFromWizard";
 import { explainProject } from "./application/explainProject";
 import { buildProjectArtifact } from "./application/projectPipeline";
+import logoMark from "./assets/logo-mark.svg";
 import { platformCapabilities } from "./core/capabilities/platformCapabilities";
 import { builderProjectSchema } from "./core/model/schema";
 import { presetPacks } from "./core/presets/presetPacks";
@@ -12,6 +13,7 @@ import {
   loadWizardDraft,
   saveWizardDraft,
 } from "./features/wizard/persistence";
+import { listRunningProcesses } from "./features/wizard/processPicker";
 import { targetDefinitions } from "./features/wizard/targetDefinitions";
 import type { TargetPlatform } from "./core/model/types";
 import { messages } from "./i18n/messages";
@@ -21,6 +23,12 @@ export function App() {
   const [wizard, setWizard] = useState(initialDraft?.wizard ?? defaultWizardState);
   const [importMessage, setImportMessage] = useState<string>("");
   const [currentStep, setCurrentStep] = useState(initialDraft?.step ?? 0);
+  const [presetQuery, setPresetQuery] = useState("");
+  const [runningProcesses, setRunningProcesses] = useState<string[]>([]);
+  const [processStatus, setProcessStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle",
+  );
+  const [processError, setProcessError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = messages[wizard.language];
 
@@ -49,8 +57,32 @@ export function App() {
   const availablePresets = presetPacks.filter((preset) =>
     preset.supportedTargets.includes(wizard.target),
   );
+  const filteredPresets = availablePresets.filter((preset) => {
+    const keyword = presetQuery.trim().toLowerCase();
+    if (!keyword) {
+      return true;
+    }
+
+    const localized = preset.i18n?.[wizard.language];
+    const haystack = [
+      preset.name,
+      preset.description,
+      localized?.name,
+      localized?.description,
+      preset.sourceLabel,
+      preset.sourceUrl,
+      ...preset.ruleProviders.map((provider) => provider.name),
+      ...preset.ruleProviders.map((provider) => provider.sourceLabel),
+      ...preset.ruleProviders.map((provider) => provider.url),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(keyword);
+  });
   const groupedPresets = Object.entries(
-    availablePresets.reduce<Record<string, typeof availablePresets>>((groups, preset) => {
+    filteredPresets.reduce<Record<string, typeof filteredPresets>>((groups, preset) => {
       groups[preset.category] ??= [];
       groups[preset.category].push(preset);
       return groups;
@@ -69,10 +101,19 @@ export function App() {
   );
   const bundlePresets = selectedPresets.filter((preset) => preset.style !== "service");
   const servicePresets = selectedPresets.filter((preset) => preset.style === "service");
+  const showProcessSection = wizard.target === "windows-mihomo";
 
   useEffect(() => {
     saveWizardDraft(wizard, currentStep);
   }, [wizard, currentStep]);
+
+  useEffect(() => {
+    if (currentStep !== 3 || !showProcessSection || processStatus !== "idle") {
+      return;
+    }
+
+    void refreshRunningProcesses();
+  }, [currentStep, processStatus, showProcessSection]);
 
   function updateTarget(target: TargetPlatform) {
     setWizard((current) => ({
@@ -84,6 +125,10 @@ export function App() {
           .some((preset) => preset.id === presetId),
       ),
     }));
+
+    setProcessStatus("idle");
+    setRunningProcesses([]);
+    setProcessError("");
   }
 
   function goToStep(step: number) {
@@ -97,6 +142,21 @@ export function App() {
         ? current.selectedPresetIds.filter((id) => id !== presetId)
         : [...current.selectedPresetIds, presetId],
     }));
+  }
+
+  async function refreshRunningProcesses() {
+    setProcessStatus("loading");
+    setProcessError("");
+
+    try {
+      const processes = await listRunningProcesses();
+      setRunningProcesses(processes);
+      setProcessStatus("ready");
+    } catch (error) {
+      setRunningProcesses([]);
+      setProcessStatus("error");
+      setProcessError(error instanceof Error ? error.message : t.processLoadFailed);
+    }
   }
 
   function exportProjectJson() {
@@ -118,7 +178,11 @@ export function App() {
   function resetWizard() {
     setWizard(defaultWizardState);
     setCurrentStep(0);
+    setPresetQuery("");
     setImportMessage(t.draftCleared);
+    setProcessStatus("idle");
+    setRunningProcesses([]);
+    setProcessError("");
     clearWizardDraft();
   }
 
@@ -186,9 +250,15 @@ export function App() {
     <main className="app-shell">
       <section className="hero">
         <div className="hero-topbar">
-          <p className="eyebrow">{t.heroEyebrow}</p>
+          <div className="hero-brand">
+            <img src={logoMark} alt="" className="hero-logo" />
+            <div className="hero-brand-copy">
+              <p className="eyebrow">{t.heroEyebrow}</p>
+              <p className="brand-support">{t.heroSupport}</p>
+            </div>
+          </div>
           <label className="language-switcher">
-            <span>{t.language}</span>
+            <span className="language-label">{t.language}</span>
             <select
               value={wizard.language}
               onChange={(event) =>
@@ -198,8 +268,8 @@ export function App() {
                 }))
               }
             >
-              <option value="en">{t.english}</option>
               <option value="zh">{t.chinese}</option>
+              <option value="en">{t.english}</option>
             </select>
           </label>
         </div>
@@ -225,9 +295,15 @@ export function App() {
           </div>
           <div className="summary-box">
             <strong>{capability.label}</strong>
-            <span>{t.project}: {wizard.projectName || t.untitled}</span>
-            <span>{t.presets}: {selectedPresets.length}</span>
-            <span>{t.sources}: {selectedSources.length}</span>
+            <span>
+              {t.project}: {wizard.projectName || t.untitled}
+            </span>
+            <span>
+              {t.presets}: {selectedPresets.length}
+            </span>
+            <span>
+              {t.sources}: {selectedSources.length}
+            </span>
             {initialDraft ? <span>{t.draftRestored}</span> : null}
           </div>
         </aside>
@@ -341,45 +417,67 @@ export function App() {
                   <strong>{t.tip}</strong>
                   <span>{t.presetTip}</span>
                 </div>
-                <div className="stack">
-                  {groupedPresets.map(([category, presets]) => (
-                    <div className="preset-group" key={category}>
-                      <h3>{presetCategoryLabels[category as keyof typeof presetCategoryLabels]}</h3>
-                      <div className="stack">
-                        {presets.map((preset) => {
-                          const localized = preset.i18n?.[wizard.language];
-                          return (
-                            <label className="check-row" key={preset.id}>
-                              <input
-                                checked={wizard.selectedPresetIds.includes(preset.id)}
-                                onChange={() => togglePreset(preset.id)}
-                                type="checkbox"
-                              />
-                              <span>
-                                <strong>{localized?.name ?? preset.name}</strong>
-                                <small>{localized?.description ?? preset.description}</small>
-                                <small>{preset.style === "service" ? t.typeService : t.typeBundle}</small>
-                                {preset.sourceLabel ? <small>{t.source}: {preset.sourceLabel}</small> : null}
-                              </span>
-                            </label>
-                          );
-                        })}
+                <label className="field">
+                  <span>{t.searchPresets}</span>
+                  <input
+                    value={presetQuery}
+                    placeholder={t.searchPresetsPlaceholder}
+                    onChange={(event) => setPresetQuery(event.target.value)}
+                  />
+                </label>
+                {groupedPresets.length === 0 ? (
+                  <p className="empty-state">{t.noPresetMatches}</p>
+                ) : (
+                  <div className="stack">
+                    {groupedPresets.map(([category, presets]) => (
+                      <div className="preset-group" key={category}>
+                        <h3>{presetCategoryLabels[category as keyof typeof presetCategoryLabels]}</h3>
+                        <div className="stack">
+                          {presets.map((preset) => {
+                            const localized = preset.i18n?.[wizard.language];
+                            return (
+                              <label className="check-row" key={preset.id}>
+                                <input
+                                  checked={wizard.selectedPresetIds.includes(preset.id)}
+                                  onChange={() => togglePreset(preset.id)}
+                                  type="checkbox"
+                                />
+                                <span>
+                                  <strong>{localized?.name ?? preset.name}</strong>
+                                  <small>{localized?.description ?? preset.description}</small>
+                                  <small>
+                                    {preset.style === "service" ? t.typeService : t.typeBundle}
+                                  </small>
+                                  {preset.sourceLabel ? (
+                                    <small>
+                                      {t.source}: {preset.sourceLabel}
+                                    </small>
+                                  ) : null}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </article>
 
               <article className="panel">
                 <h2>{t.sourcePreview}</h2>
                 <div className="source-summary">
-                  <span>{t.bundles}: {bundlePresets.length}</span>
-                  <span>{t.services}: {servicePresets.length}</span>
+                  <span>
+                    {t.bundles}: {bundlePresets.length}
+                  </span>
+                  <span>
+                    {t.services}: {servicePresets.length}
+                  </span>
                 </div>
                 {selectedSources.length === 0 ? (
                   <p>{t.noSources}</p>
                 ) : (
-                  <div className="stack">
+                  <div className="stack source-stack">
                     {selectedSources.map((source) => (
                       <div className="source-card" key={`${source.preset}-${source.providerName}`}>
                         <strong>{source.providerName}</strong>
@@ -402,94 +500,171 @@ export function App() {
             <section className="grid">
               <article className="panel">
                 <h2>{t.step4}</h2>
-                <label className="field">
-                  <span>{t.aiGroupName}</span>
-                  <input
-                    value={wizard.aiGroupName}
-                    onChange={(event) =>
-                      setWizard((current) => ({
-                        ...current,
-                        aiGroupName: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>{t.streamingGroupName}</span>
-                  <input
-                    value={wizard.streamingGroupName}
-                    onChange={(event) =>
-                      setWizard((current) => ({
-                        ...current,
-                        streamingGroupName: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="field">
-                  <span>{t.appleGroupName}</span>
-                  <input
-                    value={wizard.appleGroupName}
-                    onChange={(event) =>
-                      setWizard((current) => ({
-                        ...current,
-                        appleGroupName: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="check-row">
-                  <input
-                    checked={wizard.enableLanDirect}
-                    onChange={(event) =>
-                      setWizard((current) => ({
-                        ...current,
-                        enableLanDirect: event.target.checked,
-                      }))
-                    }
-                    type="checkbox"
-                  />
-                  <span>
-                    <strong>{t.enableLanDirect}</strong>
-                    <small>{t.enableLanDirectHelp}</small>
-                  </span>
-                </label>
-                <label className="field">
-                  <span>{t.lanCidr}</span>
-                  <input
-                    value={wizard.lanCidr}
-                    onChange={(event) =>
-                      setWizard((current) => ({ ...current, lanCidr: event.target.value }))
-                    }
-                  />
-                </label>
-                {wizard.target === "windows-mihomo" ? (
+
+                <div className="section-block">
+                  <div className="section-heading">
+                    <h3>{t.routingGroupSection}</h3>
+                    <p>{t.routingGroupSectionHelp}</p>
+                  </div>
                   <label className="field">
-                    <span>{t.processName}</span>
+                    <span>{t.aiGroupName}</span>
                     <input
-                      value={wizard.processName}
+                      value={wizard.aiGroupName}
                       onChange={(event) =>
                         setWizard((current) => ({
                           ...current,
-                          processName: event.target.value,
+                          aiGroupName: event.target.value,
                         }))
                       }
                     />
                   </label>
-                ) : null}
-                <label className="field">
-                  <span>{t.customDomains}</span>
-                  <textarea
-                    rows={6}
-                    value={wizard.customDomains}
-                    onChange={(event) =>
-                      setWizard((current) => ({
-                        ...current,
-                        customDomains: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
+                  <label className="field">
+                    <span>{t.streamingGroupName}</span>
+                    <input
+                      value={wizard.streamingGroupName}
+                      onChange={(event) =>
+                        setWizard((current) => ({
+                          ...current,
+                          streamingGroupName: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span>{t.appleGroupName}</span>
+                    <input
+                      value={wizard.appleGroupName}
+                      onChange={(event) =>
+                        setWizard((current) => ({
+                          ...current,
+                          appleGroupName: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="section-block">
+                  <div className="section-heading">
+                    <h3>{t.lanSection}</h3>
+                    <p>{t.lanSectionHelp}</p>
+                  </div>
+                  <label className="check-row">
+                    <input
+                      checked={wizard.enableLanDirect}
+                      onChange={(event) =>
+                        setWizard((current) => ({
+                          ...current,
+                          enableLanDirect: event.target.checked,
+                        }))
+                      }
+                      type="checkbox"
+                    />
+                    <span>
+                      <strong>{t.enableLanDirect}</strong>
+                      <small>{t.enableLanDirectHelp}</small>
+                    </span>
+                  </label>
+                  <label className="field">
+                    <span>{t.lanCidr}</span>
+                    <input
+                      value={wizard.lanCidr}
+                      onChange={(event) =>
+                        setWizard((current) => ({ ...current, lanCidr: event.target.value }))
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="section-block">
+                  <div className="section-heading">
+                    <h3>{t.processSection}</h3>
+                    <p>{t.processSectionHelp}</p>
+                  </div>
+                  {showProcessSection ? (
+                    <>
+                      <label className="field">
+                        <span>{t.processName}</span>
+                        <input
+                          value={wizard.processName}
+                          onChange={(event) =>
+                            setWizard((current) => ({
+                              ...current,
+                              processName: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                      <p className="helper-text">{t.processNameHelp}</p>
+                      <div className="process-picker-row">
+                        <button
+                          className="action-button action-button-ghost"
+                          type="button"
+                          onClick={() => void refreshRunningProcesses()}
+                          disabled={processStatus === "loading"}
+                        >
+                          {runningProcesses.length > 0 ? t.refreshProcesses : t.detectProcesses}
+                        </button>
+                        <select
+                          className="process-select"
+                          value=""
+                          onChange={(event) => {
+                            if (!event.target.value) {
+                              return;
+                            }
+
+                            setWizard((current) => ({
+                              ...current,
+                              processName: event.target.value,
+                            }));
+                          }}
+                          disabled={runningProcesses.length === 0}
+                        >
+                          <option value="">{t.chooseProcess}</option>
+                          {runningProcesses.map((processName) => (
+                            <option key={processName} value={processName}>
+                              {processName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {processStatus === "loading" ? (
+                        <p className="helper-text">{t.loadingProcesses}</p>
+                      ) : null}
+                      {processStatus === "ready" && runningProcesses.length === 0 ? (
+                        <p className="helper-text">{t.noProcessesFound}</p>
+                      ) : null}
+                      {processStatus === "error" ? (
+                        <p className="helper-text">
+                          {t.processLoadFailed}
+                          {processError ? ` ${processError}` : ""}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="helper-text">{t.processRoutingUnavailable}</p>
+                  )}
+                </div>
+
+                <div className="section-block">
+                  <div className="section-heading">
+                    <h3>{t.customDomainSection}</h3>
+                    <p>{t.customDomainSectionHelp}</p>
+                  </div>
+                  <label className="field">
+                    <span>{t.customDomains}</span>
+                    <textarea
+                      rows={6}
+                      value={wizard.customDomains}
+                      onChange={(event) =>
+                        setWizard((current) => ({
+                          ...current,
+                          customDomains: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
               </article>
             </section>
           ) : null}
@@ -503,7 +678,11 @@ export function App() {
                     <button className="action-button" onClick={exportProjectJson} type="button">
                       {t.exportProjectJson}
                     </button>
-                    <button className="action-button action-button-secondary" onClick={exportYaml} type="button">
+                    <button
+                      className="action-button action-button-secondary"
+                      onClick={exportYaml}
+                      type="button"
+                    >
                       {t.exportYaml}
                     </button>
                     <button
@@ -559,14 +738,20 @@ export function App() {
                   </div>
                 </article>
 
-                <article className="panel">
-                  <h2>{t.projectJsonPreview}</h2>
-                  <pre>{JSON.stringify(project, null, 2)}</pre>
+                <article className="panel preview-panel">
+                  <div className="preview-heading">
+                    <h2>{t.projectJsonPreview}</h2>
+                    <span>{t.previewHint}</span>
+                  </div>
+                  <pre className="code-preview">{JSON.stringify(project, null, 2)}</pre>
                 </article>
 
-                <article className="panel">
-                  <h2>{t.renderedYamlPreview}</h2>
-                  <pre>{rendered.content}</pre>
+                <article className="panel preview-panel">
+                  <div className="preview-heading">
+                    <h2>{t.renderedYamlPreview}</h2>
+                    <span>{t.previewHint}</span>
+                  </div>
+                  <pre className="code-preview">{rendered.content}</pre>
                 </article>
               </section>
             </>

@@ -2,7 +2,7 @@ import type { WizardState } from "./types";
 
 export const defaultWizardState: WizardState = {
   language: "zh",
-  projectName: "Home Routing Project",
+  projectName: "家庭分流方案",
   target: "openclash",
   mode: "simple",
   selectedPresetIds: [

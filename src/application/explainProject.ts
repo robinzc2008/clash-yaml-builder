@@ -11,28 +11,33 @@ export function explainProject(project: BuilderProject, language: AppLanguage): 
         ? `策略组“${project.settings.finalPolicy.value}”`
         : project.settings.finalPolicy.value;
     lines.push(`没有被前置规则命中的流量，最终会走 ${finalPolicyZh}。`);
+
     if (project.settings.enableLanDirect) {
       const lanRule = project.rules.find((rule) => rule.match.kind === "src_ip_cidr");
       if (lanRule?.match.value) {
         lines.push(`来自 ${lanRule.match.value} 的局域网流量会优先直连。`);
       }
     }
+
     const ruleSetRules = project.rules.filter((rule) => rule.match.kind === "rule_set");
     if (ruleSetRules.length > 0) {
-      lines.push(`当前选中的服务模板一共添加了 ${ruleSetRules.length} 条基于上游规则集的分流规则。`);
+      lines.push(`当前选中的模板一共添加了 ${ruleSetRules.length} 条基于上游规则集的分流规则。`);
     }
+
     const customDomainCount = project.rules.filter((rule) =>
       rule.id.startsWith("rule-custom-domain-"),
     ).length;
     if (customDomainCount > 0) {
-      lines.push(`用户额外添加了 ${customDomainCount} 条自定义域名后缀规则。`);
+      lines.push(`用户额外补充了 ${customDomainCount} 条自定义域名后缀规则。`);
     }
+
     if (project.meta.target === "windows-mihomo") {
       const processRule = project.rules.find((rule) => rule.match.kind === "process_name");
       if (processRule?.match.value) {
         lines.push(`已为 Windows 进程 ${processRule.match.value} 启用按进程分流。`);
       }
     }
+
     lines.push(
       `最终输出包含 ${project.groups.length} 个策略组、${project.ruleProviders.length} 个规则源，以及 ${project.rules.length} 条规则。`,
     );

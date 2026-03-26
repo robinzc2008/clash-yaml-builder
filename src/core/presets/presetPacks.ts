@@ -189,10 +189,7 @@ export const presetPacks: PresetPack[] = [
         name: "Claude",
         sourceType: "inline",
         behavior: "classical",
-        payload: [
-          "DOMAIN-SUFFIX,claude.ai",
-          "DOMAIN-SUFFIX,anthropic.com",
-        ],
+        payload: ["DOMAIN-SUFFIX,claude.ai", "DOMAIN-SUFFIX,anthropic.com"],
         sourceLabel: "Built-in inline domains",
       },
     ],
@@ -334,7 +331,7 @@ export const presetPacks: PresetPack[] = [
     i18n: {
       zh: {
         name: "Google",
-        description: "将 Google 搜索及其服务域名导向默认代理组。",
+        description: "将 Google 搜索及相关服务域名导向默认代理组。",
       },
     },
   },
@@ -547,7 +544,8 @@ export const presetPacks: PresetPack[] = [
     name: "Apple",
     category: "ecosystem",
     style: "service",
-    description: "Adds an Apple-focused ruleset for clients that need Apple services split out separately.",
+    description:
+      "Adds an Apple-focused ruleset for clients that need Apple services split out separately.",
     supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
