@@ -2,12 +2,22 @@ import type { TargetPlatform } from "../../core/model/types";
 
 export type AppLanguage = "en" | "zh";
 
+export type WizardPolicyTargetId =
+  | "group-default-proxy"
+  | "group-ai-services"
+  | "group-streaming"
+  | "group-apple"
+  | "builtin:DIRECT"
+  | "builtin:REJECT";
+
 export interface WizardState {
   language: AppLanguage;
   projectName: string;
   target: TargetPlatform;
   mode: "simple" | "advanced";
   selectedPresetIds: string[];
+  selectedRemoteRuleIds: string[];
+  ruleAssignments: Record<string, WizardPolicyTargetId>;
   defaultProxyGroupName: string;
   aiGroupName: string;
   streamingGroupName: string;
@@ -16,5 +26,7 @@ export interface WizardState {
   enableLanDirect: boolean;
   lanCidr: string;
   processName: string;
+  processTarget: WizardPolicyTargetId;
   customDomains: string;
+  customDomainTarget: WizardPolicyTargetId;
 }

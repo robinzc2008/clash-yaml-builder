@@ -8,59 +8,55 @@ import type {
   TargetPlatform,
 } from "../core/model/types";
 import { presetPacks } from "../core/presets/presetPacks";
-import type { WizardState } from "../features/wizard/types";
+import { buildRemoteRuleProviderFromId } from "../core/sources/metaRulesDat";
+import {
+  getActiveGroupTargetIds,
+  getGroupNameByTarget,
+  targetIdToPolicyRef,
+} from "../features/wizard/routingTargets";
+import type { NamedGroupTargetId } from "../features/wizard/routingTargets";
+import type { WizardPolicyTargetId, WizardState } from "../features/wizard/types";
 
-function renameGroup(group: GroupSpec, state: WizardState): GroupSpec {
-  const groupNameMap: Record<string, string> = {
-    "group-default-proxy": state.defaultProxyGroupName,
-    "group-ai-services": state.aiGroupName,
-    "group-streaming": state.streamingGroupName,
-    "group-apple": state.appleGroupName,
-  };
+function buildGroupByTargetId(targetId: NamedGroupTargetId, state: WizardState): GroupSpec {
+  const name = getGroupNameByTarget(targetId, state);
 
-  return {
-    ...group,
-    name: groupNameMap[group.id] ?? group.name,
-  };
-}
-
-function renameRuleTarget(name: string, state: WizardState): string {
-  const targetMap: Record<string, string> = {
-    "Default Proxy": state.defaultProxyGroupName,
-    "AI Services": state.aiGroupName,
-    Streaming: state.streamingGroupName,
-    Apple: state.appleGroupName,
-  };
-
-  return targetMap[name] ?? name;
-}
-
-function buildBaseGroups(target: TargetPlatform, state: WizardState): GroupSpec[] {
-  const defaults: GroupSpec[] = [
-    {
-      id: "group-default-proxy",
-      name: state.defaultProxyGroupName,
-      type: "select",
-      members: [
-        { kind: "builtin", value: "DIRECT" },
-        { kind: "proxy-provider", ref: "provider-main" },
-      ],
-    },
-  ];
-
-  if (target === "windows-mihomo") {
-    defaults.push({
-      id: "group-app-routing",
-      name: "App Routing",
-      type: "select",
-      members: [
-        { kind: "group", ref: "group-default-proxy" },
-        { kind: "builtin", value: "DIRECT" },
-      ],
-    });
+  switch (targetId) {
+    case "group-default-proxy":
+      return {
+        id: targetId,
+        name,
+        type: "select",
+        members: [
+          { kind: "builtin", value: "DIRECT" },
+          { kind: "proxy-provider", ref: "provider-main" },
+        ],
+      };
+    case "group-ai-services":
+    case "group-streaming":
+      return {
+        id: targetId,
+        name,
+        type: "select",
+        members: [
+          { kind: "group", ref: "group-default-proxy" },
+          { kind: "builtin", value: "DIRECT" },
+        ],
+      };
+    case "group-apple":
+      return {
+        id: targetId,
+        name,
+        type: "select",
+        members: [
+          { kind: "builtin", value: "DIRECT" },
+          { kind: "group", ref: "group-default-proxy" },
+        ],
+      };
   }
+}
 
-  return defaults;
+function buildBaseGroups(state: WizardState): GroupSpec[] {
+  return getActiveGroupTargetIds(state).map((targetId) => buildGroupByTargetId(targetId, state));
 }
 
 function buildBaseProxyProviders(): ProxyProviderSpec[] {
@@ -101,7 +97,7 @@ function buildLanRule(lanCidr: string): RuleSpec {
   };
 }
 
-function buildProcessRule(processName: string): RuleSpec | null {
+function buildProcessRule(processName: string, targetId: WizardPolicyTargetId, state: WizardState): RuleSpec | null {
   const trimmed = processName.trim();
   if (!trimmed) {
     return null;
@@ -113,14 +109,14 @@ function buildProcessRule(processName: string): RuleSpec | null {
       kind: "process_name",
       value: trimmed,
     },
-    policy: { kind: "group", value: "App Routing" },
+    policy: targetIdToPolicyRef(targetId, state),
     priority: 30,
     enabled: true,
-    comment: "Route the selected desktop app through a dedicated group.",
+    comment: "Route the selected desktop app through the configured target.",
   };
 }
 
-function buildCustomDomainRules(domains: string, state: WizardState): RuleSpec[] {
+function buildCustomDomainRules(domains: string, targetId: WizardPolicyTargetId, state: WizardState): RuleSpec[] {
   return domains
     .split(/\r?\n/)
     .map((item) => item.trim())
@@ -128,14 +124,16 @@ function buildCustomDomainRules(domains: string, state: WizardState): RuleSpec[]
     .map((domain, index) => ({
       id: `rule-custom-domain-${index + 1}`,
       match: { kind: "domain_suffix" as const, value: domain },
-      policy: { kind: "group" as const, value: state.defaultProxyGroupName },
+      policy: targetIdToPolicyRef(targetId, state),
       priority: 200 + index,
       enabled: true,
       comment: "Custom domain routing.",
     }));
 }
 
-function buildFinalPolicy(state: WizardState): { kind: "builtin"; value: BuiltinPolicy } | { kind: "group"; value: string } {
+function buildFinalPolicy(
+  state: WizardState,
+): { kind: "builtin"; value: BuiltinPolicy } | { kind: "group"; value: string } {
   if (state.finalPolicyMode === "direct") {
     return { kind: "builtin", value: "DIRECT" };
   }
@@ -143,39 +141,84 @@ function buildFinalPolicy(state: WizardState): { kind: "builtin"; value: Builtin
   return { kind: "group", value: state.defaultProxyGroupName };
 }
 
-function renamePresetRules(rules: RuleSpec[], state: WizardState): RuleSpec[] {
-  return rules.map((rule) => ({
-    ...rule,
-    policy:
-      rule.policy.kind === "group"
-        ? { ...rule.policy, value: renameRuleTarget(rule.policy.value, state) }
-        : rule.policy,
-  }));
+function buildPresetRules(selectedPresetIds: string[], state: WizardState): RuleSpec[] {
+  return selectedPresetIds.flatMap((presetId) => {
+    const preset = presetPacks.find((item) => item.id === presetId);
+    if (!preset) {
+      return [];
+    }
+
+    const targetId = state.ruleAssignments[`preset:${presetId}`] ?? "group-default-proxy";
+
+    return preset.rules.map((rule, index) => ({
+      ...rule,
+      id: `${rule.id}-${index + 1}`,
+      policy: targetIdToPolicyRef(targetId, state),
+    }));
+  });
+}
+
+function buildPresetRuleProviders(selectedPresetIds: string[]): RuleProviderSpec[] {
+  return selectedPresetIds.flatMap((presetId) => {
+    const preset = presetPacks.find((item) => item.id === presetId);
+    return preset?.ruleProviders ?? [];
+  });
+}
+
+function buildRemoteRuleProviders(selectedRemoteRuleIds: string[]): RuleProviderSpec[] {
+  const providers: RuleProviderSpec[] = [];
+
+  selectedRemoteRuleIds.forEach((id) => {
+    const provider = buildRemoteRuleProviderFromId(id);
+    if (provider) {
+      providers.push(provider);
+    }
+  });
+
+  return providers;
+}
+
+function buildRemoteRules(selectedRemoteRuleIds: string[], state: WizardState): RuleSpec[] {
+  const rules: RuleSpec[] = [];
+
+  selectedRemoteRuleIds.forEach((id, index) => {
+    const provider = buildRemoteRuleProviderFromId(id);
+    if (!provider) {
+      return;
+    }
+
+    const targetId = state.ruleAssignments[`remote:${id}`] ?? "group-default-proxy";
+
+    rules.push({
+      id: `remote-rule-${id.replace(/[^a-z0-9-:]/gi, "-")}`,
+      match: { kind: "rule_set", value: provider.name },
+      policy: targetIdToPolicyRef(targetId, state),
+      priority: 120 + index,
+      enabled: true,
+      comment: "MetaCubeX remote rule selection.",
+    });
+  });
+
+  return rules;
 }
 
 export function createProjectFromWizard(state: WizardState): BuilderProject {
   const now = new Date().toISOString();
-  const selectedPresets = presetPacks.filter((preset) =>
-    state.selectedPresetIds.includes(preset.id),
-  );
-
-  const groups = mergeUniqueById([
-    ...buildBaseGroups(state.target, state),
-    ...selectedPresets.flatMap((preset) => preset.groups.map((group) => renameGroup(group, state))),
-  ]);
-
+  const groups = buildBaseGroups(state);
   const proxyProviders = buildBaseProxyProviders();
 
   const ruleProviders = mergeUniqueById<RuleProviderSpec>([
-    ...selectedPresets.flatMap((preset) => preset.ruleProviders),
+    ...buildPresetRuleProviders(state.selectedPresetIds),
+    ...buildRemoteRuleProviders(state.selectedRemoteRuleIds),
   ]);
 
   const rules = mergeUniqueById<RuleSpec>([
     ...(state.enableLanDirect ? [buildLanRule(state.lanCidr)] : []),
-    ...selectedPresets.flatMap((preset) => renamePresetRules(preset.rules, state)),
-    ...buildCustomDomainRules(state.customDomains, state),
+    ...buildPresetRules(state.selectedPresetIds, state),
+    ...buildRemoteRules(state.selectedRemoteRuleIds, state),
+    ...buildCustomDomainRules(state.customDomains, state.customDomainTarget, state),
     ...(state.target === "windows-mihomo"
-      ? [buildProcessRule(state.processName)].filter(
+      ? [buildProcessRule(state.processName, state.processTarget, state)].filter(
           (rule): rule is RuleSpec => Boolean(rule),
         )
       : []),

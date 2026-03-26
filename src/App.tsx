@@ -6,6 +6,10 @@ import logoMark from "./assets/logo-mark.svg";
 import { platformCapabilities } from "./core/capabilities/platformCapabilities";
 import { builderProjectSchema } from "./core/model/schema";
 import { presetPacks } from "./core/presets/presetPacks";
+import {
+  fetchMetaRulesDatRemoteCatalog,
+  type MetaRulesDatRemoteItem,
+} from "./core/sources/metaRulesDat";
 import { defaultWizardState } from "./features/wizard/defaultWizardState";
 import { downloadTextFile } from "./features/wizard/export";
 import {
@@ -14,16 +18,58 @@ import {
   saveWizardDraft,
 } from "./features/wizard/persistence";
 import { listRunningProcesses } from "./features/wizard/processPicker";
+import {
+  getActiveGroupTargetIds,
+  getPolicyTargetOptions,
+  policyRefToTargetId,
+  suggestTargetForPreset,
+  suggestTargetForRemoteRule,
+} from "./features/wizard/routingTargets";
 import { targetDefinitions } from "./features/wizard/targetDefinitions";
 import type { TargetPlatform } from "./core/model/types";
+import type { WizardPolicyTargetId } from "./features/wizard/types";
 import { messages } from "./i18n/messages";
+
+function formatSyncTime(value: string, language: "en" | "zh") {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function createRemotePlaceholder(id: string): MetaRulesDatRemoteItem {
+  const [kind = "geosite", name = id] = id.split(":");
+  const normalizedKind = kind === "geoip" ? "geoip" : "geosite";
+  return {
+    id: `${normalizedKind}:${name}`,
+    kind: normalizedKind,
+    name,
+    providerName: `${normalizedKind}:${name}`,
+    behavior: normalizedKind === "geoip" ? "ipcidr" : "domain",
+    url: "",
+    sourceLabel: `MetaCubeX ${normalizedKind}:${name}`,
+    sourceUrl: "",
+    searchText: `${normalizedKind} ${name}`.toLowerCase(),
+  };
+}
 
 export function App() {
   const initialDraft = loadWizardDraft();
   const [wizard, setWizard] = useState(initialDraft?.wizard ?? defaultWizardState);
-  const [importMessage, setImportMessage] = useState<string>("");
+  const [importMessage, setImportMessage] = useState("");
   const [currentStep, setCurrentStep] = useState(initialDraft?.step ?? 0);
-  const [presetQuery, setPresetQuery] = useState("");
+  const [remoteQuery, setRemoteQuery] = useState("");
+  const [remoteCatalog, setRemoteCatalog] = useState<MetaRulesDatRemoteItem[]>([]);
+  const [remoteStatus, setRemoteStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle",
+  );
+  const [remoteError, setRemoteError] = useState("");
+  const [lastSyncedAt, setLastSyncedAt] = useState("");
   const [runningProcesses, setRunningProcesses] = useState<string[]>([]);
   const [processStatus, setProcessStatus] = useState<"idle" | "loading" | "ready" | "error">(
     "idle",
@@ -57,32 +103,8 @@ export function App() {
   const availablePresets = presetPacks.filter((preset) =>
     preset.supportedTargets.includes(wizard.target),
   );
-  const filteredPresets = availablePresets.filter((preset) => {
-    const keyword = presetQuery.trim().toLowerCase();
-    if (!keyword) {
-      return true;
-    }
-
-    const localized = preset.i18n?.[wizard.language];
-    const haystack = [
-      preset.name,
-      preset.description,
-      localized?.name,
-      localized?.description,
-      preset.sourceLabel,
-      preset.sourceUrl,
-      ...preset.ruleProviders.map((provider) => provider.name),
-      ...preset.ruleProviders.map((provider) => provider.sourceLabel),
-      ...preset.ruleProviders.map((provider) => provider.url),
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
-    return haystack.includes(keyword);
-  });
   const groupedPresets = Object.entries(
-    filteredPresets.reduce<Record<string, typeof filteredPresets>>((groups, preset) => {
+    availablePresets.reduce<Record<string, typeof availablePresets>>((groups, preset) => {
       groups[preset.category] ??= [];
       groups[preset.category].push(preset);
       return groups;
@@ -91,21 +113,68 @@ export function App() {
   const selectedPresets = availablePresets.filter((preset) =>
     wizard.selectedPresetIds.includes(preset.id),
   );
-  const selectedSources = selectedPresets.flatMap((preset) =>
-    preset.ruleProviders.map((provider) => ({
-      preset: preset.i18n?.[wizard.language]?.name ?? preset.name,
-      providerName: provider.name,
-      sourceLabel: provider.sourceLabel ?? preset.sourceLabel ?? "Inline rules",
-      sourceUrl: provider.url ?? provider.sourceUrl ?? preset.sourceUrl ?? "",
-    })),
+  const remoteCatalogMap = useMemo(
+    () => new Map<string, MetaRulesDatRemoteItem>(remoteCatalog.map((item) => [item.id, item])),
+    [remoteCatalog],
   );
+  const selectedRemoteItems = wizard.selectedRemoteRuleIds.map(
+    (id) => remoteCatalogMap.get(id) ?? createRemotePlaceholder(id),
+  );
+  const filteredRemoteCatalog = remoteCatalog.filter((item) =>
+    item.searchText.includes(remoteQuery.trim().toLowerCase()),
+  );
+  const selectedSources = [
+    ...selectedPresets.flatMap((preset) =>
+      preset.ruleProviders.map((provider) => ({
+        key: `preset-${preset.id}-${provider.id}`,
+        providerName: provider.name,
+        preset: preset.i18n?.[wizard.language]?.name ?? preset.name,
+        sourceLabel: provider.sourceLabel ?? preset.sourceLabel ?? "Inline rules",
+        sourceUrl: provider.url ?? provider.sourceUrl ?? preset.sourceUrl ?? "",
+      })),
+    ),
+    ...selectedRemoteItems.map((item) => ({
+      key: `remote-${item.id}`,
+      providerName: item.providerName,
+      preset: item.kind === "geosite" ? t.remoteKindGeosite : t.remoteKindGeoip,
+      sourceLabel: item.sourceLabel,
+      sourceUrl: item.url,
+    })),
+  ];
   const bundlePresets = selectedPresets.filter((preset) => preset.style !== "service");
   const servicePresets = selectedPresets.filter((preset) => preset.style === "service");
+  const policyTargetOptions = getPolicyTargetOptions(wizard, wizard.language);
+  const activeGroupTargetIds = getActiveGroupTargetIds(wizard);
+  const selectedRoutingItems = [
+    ...selectedPresets.map((preset) => ({
+      key: `preset:${preset.id}`,
+      title: preset.i18n?.[wizard.language]?.name ?? preset.name,
+      description: preset.i18n?.[wizard.language]?.description ?? preset.description,
+      sourceLabel: preset.sourceLabel ?? "",
+    })),
+    ...selectedRemoteItems.map((item) => ({
+      key: `remote:${item.id}`,
+      title: item.providerName,
+      description:
+        item.kind === "geoip"
+          ? `${t.remoteKindGeoip} · ${item.name}`
+          : `${t.remoteKindGeosite} · ${item.name}`,
+      sourceLabel: item.sourceLabel,
+    })),
+  ];
   const showProcessSection = wizard.target === "windows-mihomo";
 
   useEffect(() => {
     saveWizardDraft(wizard, currentStep);
   }, [wizard, currentStep]);
+
+  useEffect(() => {
+    if (currentStep !== 2 || remoteStatus !== "idle") {
+      return;
+    }
+
+    void syncRemoteRules();
+  }, [currentStep, remoteStatus]);
 
   useEffect(() => {
     if (currentStep !== 3 || !showProcessSection || processStatus !== "idle") {
@@ -114,6 +183,22 @@ export function App() {
 
     void refreshRunningProcesses();
   }, [currentStep, processStatus, showProcessSection]);
+
+  async function syncRemoteRules() {
+    setRemoteStatus("loading");
+    setRemoteError("");
+
+    try {
+      const items = await fetchMetaRulesDatRemoteCatalog();
+      setRemoteCatalog(items);
+      setRemoteStatus("ready");
+      setLastSyncedAt(new Date().toISOString());
+    } catch (error) {
+      setRemoteCatalog([]);
+      setRemoteStatus("error");
+      setRemoteError(error instanceof Error ? error.message : t.remoteRulesFailed);
+    }
+  }
 
   function updateTarget(target: TargetPlatform) {
     setWizard((current) => ({
@@ -136,12 +221,48 @@ export function App() {
   }
 
   function togglePreset(presetId: string) {
-    setWizard((current) => ({
-      ...current,
-      selectedPresetIds: current.selectedPresetIds.includes(presetId)
+    const preset = presetPacks.find((item) => item.id === presetId);
+    setWizard((current) => {
+      const exists = current.selectedPresetIds.includes(presetId);
+      const selectedPresetIds = exists
         ? current.selectedPresetIds.filter((id) => id !== presetId)
-        : [...current.selectedPresetIds, presetId],
-    }));
+        : [...current.selectedPresetIds, presetId];
+      const nextAssignments = { ...current.ruleAssignments };
+
+      if (exists) {
+        delete nextAssignments[`preset:${presetId}`];
+      } else if (preset) {
+        nextAssignments[`preset:${presetId}`] = suggestTargetForPreset(preset);
+      }
+
+      return {
+        ...current,
+        selectedPresetIds,
+        ruleAssignments: nextAssignments,
+      };
+    });
+  }
+
+  function toggleRemoteRule(item: MetaRulesDatRemoteItem) {
+    setWizard((current) => {
+      const exists = current.selectedRemoteRuleIds.includes(item.id);
+      const selectedRemoteRuleIds = exists
+        ? current.selectedRemoteRuleIds.filter((id) => id !== item.id)
+        : [...current.selectedRemoteRuleIds, item.id];
+      const nextAssignments = { ...current.ruleAssignments };
+
+      if (exists) {
+        delete nextAssignments[`remote:${item.id}`];
+      } else {
+        nextAssignments[`remote:${item.id}`] = suggestTargetForRemoteRule(item);
+      }
+
+      return {
+        ...current,
+        selectedRemoteRuleIds,
+        ruleAssignments: nextAssignments,
+      };
+    });
   }
 
   async function refreshRunningProcesses() {
@@ -178,7 +299,7 @@ export function App() {
   function resetWizard() {
     setWizard(defaultWizardState);
     setCurrentStep(0);
-    setPresetQuery("");
+    setRemoteQuery("");
     setImportMessage(t.draftCleared);
     setProcessStatus("idle");
     setRunningProcesses([]);
@@ -195,18 +316,46 @@ export function App() {
     try {
       const text = await file.text();
       const parsed = builderProjectSchema.parse(JSON.parse(text));
+      const selectedPresetIds = presetPacks
+        .filter((preset) =>
+          preset.ruleProviders.some((provider) =>
+            parsed.ruleProviders.some((item) => item.name === provider.name),
+          ),
+        )
+        .map((preset) => preset.id);
+      const selectedRemoteRuleIds = parsed.ruleProviders
+        .map((provider) => provider.name)
+        .filter((name) => name.startsWith("geosite:") || name.startsWith("geoip:"));
+
+      const nextAssignments: Record<string, WizardPolicyTargetId> = {};
+      selectedPresetIds.forEach((presetId) => {
+        const preset = presetPacks.find((item) => item.id === presetId);
+        const firstProviderName = preset?.ruleProviders[0]?.name;
+        const matchedRule = parsed.rules.find((rule) => rule.match.value === firstProviderName);
+        nextAssignments[`preset:${presetId}`] = matchedRule
+          ? policyRefToTargetId(matchedRule.policy, defaultWizardState)
+          : "group-default-proxy";
+      });
+      selectedRemoteRuleIds.forEach((remoteId) => {
+        const matchedRule = parsed.rules.find((rule) => rule.match.value === remoteId);
+        nextAssignments[`remote:${remoteId}`] = matchedRule
+          ? policyRefToTargetId(matchedRule.policy, defaultWizardState)
+          : "group-default-proxy";
+      });
+
+      const customDomainRule = parsed.rules.find((rule) =>
+        rule.id.startsWith("rule-custom-domain-"),
+      );
+      const processRule = parsed.rules.find((rule) => rule.match.kind === "process_name");
+
       setWizard({
         language: wizard.language,
         projectName: parsed.meta.name,
         target: parsed.meta.target,
         mode: parsed.meta.mode,
-        selectedPresetIds: presetPacks
-          .filter((preset) =>
-            preset.ruleProviders.some((provider) =>
-              parsed.ruleProviders.some((item) => item.name === provider.name),
-            ),
-          )
-          .map((preset) => preset.id),
+        selectedPresetIds,
+        selectedRemoteRuleIds,
+        ruleAssignments: nextAssignments,
         defaultProxyGroupName:
           parsed.groups.find((group) => group.id === "group-default-proxy")?.name ??
           "Default Proxy",
@@ -227,13 +376,17 @@ export function App() {
         lanCidr:
           parsed.rules.find((rule) => rule.match.kind === "src_ip_cidr")?.match.value ??
           "192.168.1.0/24",
-        processName:
-          parsed.rules.find((rule) => rule.match.kind === "process_name")?.match.value ??
-          "",
+        processName: processRule?.match.value ?? "",
+        processTarget: processRule
+          ? policyRefToTargetId(processRule.policy, defaultWizardState)
+          : "group-default-proxy",
         customDomains: parsed.rules
           .filter((rule) => rule.id.startsWith("rule-custom-domain-"))
           .map((rule) => rule.match.value ?? "")
           .join("\n"),
+        customDomainTarget: customDomainRule
+          ? policyRefToTargetId(customDomainRule.policy, defaultWizardState)
+          : "group-default-proxy",
       });
       setImportMessage(`${t.imported} ${file.name}`);
       goToStep(4);
@@ -299,7 +452,7 @@ export function App() {
               {t.project}: {wizard.projectName || t.untitled}
             </span>
             <span>
-              {t.presets}: {selectedPresets.length}
+              {t.presets}: {selectedPresets.length + selectedRemoteItems.length}
             </span>
             <span>
               {t.sources}: {selectedSources.length}
@@ -417,17 +570,11 @@ export function App() {
                   <strong>{t.tip}</strong>
                   <span>{t.presetTip}</span>
                 </div>
-                <label className="field">
-                  <span>{t.searchPresets}</span>
-                  <input
-                    value={presetQuery}
-                    placeholder={t.searchPresetsPlaceholder}
-                    onChange={(event) => setPresetQuery(event.target.value)}
-                  />
-                </label>
-                {groupedPresets.length === 0 ? (
-                  <p className="empty-state">{t.noPresetMatches}</p>
-                ) : (
+
+                <div className="catalog-block">
+                  <div className="catalog-header">
+                    <h3>{t.quickPresets}</h3>
+                  </div>
                   <div className="stack">
                     {groupedPresets.map(([category, presets]) => (
                       <div className="preset-group" key={category}>
@@ -461,7 +608,72 @@ export function App() {
                       </div>
                     ))}
                   </div>
-                )}
+                </div>
+
+                <div className="catalog-block">
+                  <div className="catalog-header catalog-header-wide">
+                    <div>
+                      <h3>{t.remoteCatalog}</h3>
+                      <p className="helper-text">{t.remoteCatalogHelp}</p>
+                    </div>
+                    <button
+                      className="action-button action-button-ghost"
+                      type="button"
+                      onClick={() => void syncRemoteRules()}
+                      disabled={remoteStatus === "loading"}
+                    >
+                      {remoteCatalog.length > 0 ? t.refreshRemoteRules : t.syncRemoteRules}
+                    </button>
+                  </div>
+                  {remoteStatus === "loading" ? (
+                    <p className="helper-text">{t.syncingRemoteRules}</p>
+                  ) : null}
+                  {remoteStatus === "error" ? (
+                    <p className="helper-text">
+                      {t.remoteRulesFailed}
+                      {remoteError ? ` ${remoteError}` : ""}
+                    </p>
+                  ) : null}
+                  {lastSyncedAt ? (
+                    <p className="helper-text">
+                      {t.lastSyncedAt}: {formatSyncTime(lastSyncedAt, wizard.language)}
+                    </p>
+                  ) : null}
+                  <label className="field">
+                    <span>{t.searchRemoteRules}</span>
+                    <input
+                      value={remoteQuery}
+                      placeholder={t.searchRemoteRulesPlaceholder}
+                      onChange={(event) => setRemoteQuery(event.target.value)}
+                    />
+                  </label>
+                  {remoteCatalog.length === 0 && remoteStatus !== "loading" ? (
+                    <p className="empty-state">{t.noRemoteRulesYet}</p>
+                  ) : null}
+                  {remoteCatalog.length > 0 && filteredRemoteCatalog.length === 0 ? (
+                    <p className="empty-state">{t.noRemoteMatches}</p>
+                  ) : null}
+                  {filteredRemoteCatalog.length > 0 ? (
+                    <div className="remote-rule-list">
+                      {filteredRemoteCatalog.map((item) => (
+                        <label className="check-row remote-rule-row" key={item.id}>
+                          <input
+                            checked={wizard.selectedRemoteRuleIds.includes(item.id)}
+                            onChange={() => toggleRemoteRule(item)}
+                            type="checkbox"
+                          />
+                          <span>
+                            <strong>{item.providerName}</strong>
+                            <small>
+                              {item.kind === "geoip" ? t.remoteKindGeoip : t.remoteKindGeosite}
+                            </small>
+                            <small>{item.url}</small>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </article>
 
               <article className="panel">
@@ -473,13 +685,16 @@ export function App() {
                   <span>
                     {t.services}: {servicePresets.length}
                   </span>
+                  <span>
+                    {t.remoteRules}: {selectedRemoteItems.length}
+                  </span>
                 </div>
                 {selectedSources.length === 0 ? (
                   <p>{t.noSources}</p>
                 ) : (
                   <div className="stack source-stack">
                     {selectedSources.map((source) => (
-                      <div className="source-card" key={`${source.preset}-${source.providerName}`}>
+                      <div className="source-card" key={source.key}>
                         <strong>{source.providerName}</strong>
                         <span>{source.preset}</span>
                         <small>{source.sourceLabel}</small>
@@ -506,42 +721,112 @@ export function App() {
                     <h3>{t.routingGroupSection}</h3>
                     <p>{t.routingGroupSectionHelp}</p>
                   </div>
-                  <label className="field">
-                    <span>{t.aiGroupName}</span>
-                    <input
-                      value={wizard.aiGroupName}
-                      onChange={(event) =>
-                        setWizard((current) => ({
-                          ...current,
-                          aiGroupName: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span>{t.streamingGroupName}</span>
-                    <input
-                      value={wizard.streamingGroupName}
-                      onChange={(event) =>
-                        setWizard((current) => ({
-                          ...current,
-                          streamingGroupName: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className="field">
-                    <span>{t.appleGroupName}</span>
-                    <input
-                      value={wizard.appleGroupName}
-                      onChange={(event) =>
-                        setWizard((current) => ({
-                          ...current,
-                          appleGroupName: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
+                  {activeGroupTargetIds.map((targetId) => {
+                    if (targetId === "group-default-proxy") {
+                      return (
+                        <label className="field" key={targetId}>
+                          <span>{t.defaultProxyGroupName}</span>
+                          <input
+                            value={wizard.defaultProxyGroupName}
+                            onChange={(event) =>
+                              setWizard((current) => ({
+                                ...current,
+                                defaultProxyGroupName: event.target.value,
+                              }))
+                            }
+                          />
+                        </label>
+                      );
+                    }
+
+                    if (targetId === "group-ai-services") {
+                      return (
+                        <label className="field" key={targetId}>
+                          <span>{t.aiGroupName}</span>
+                          <input
+                            value={wizard.aiGroupName}
+                            onChange={(event) =>
+                              setWizard((current) => ({
+                                ...current,
+                                aiGroupName: event.target.value,
+                              }))
+                            }
+                          />
+                        </label>
+                      );
+                    }
+
+                    if (targetId === "group-streaming") {
+                      return (
+                        <label className="field" key={targetId}>
+                          <span>{t.streamingGroupName}</span>
+                          <input
+                            value={wizard.streamingGroupName}
+                            onChange={(event) =>
+                              setWizard((current) => ({
+                                ...current,
+                                streamingGroupName: event.target.value,
+                              }))
+                            }
+                          />
+                        </label>
+                      );
+                    }
+
+                    return (
+                      <label className="field" key={targetId}>
+                        <span>{t.appleGroupName}</span>
+                        <input
+                          value={wizard.appleGroupName}
+                          onChange={(event) =>
+                            setWizard((current) => ({
+                              ...current,
+                              appleGroupName: event.target.value,
+                            }))
+                          }
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="section-block">
+                  <div className="section-heading">
+                    <h3>{t.selectedRulesSection}</h3>
+                    <p>{t.selectedRulesSectionHelp}</p>
+                  </div>
+                  <div className="assignment-list">
+                    {selectedRoutingItems.map((item) => (
+                      <div className="assignment-row" key={item.key}>
+                        <div className="assignment-copy">
+                          <strong>{item.title}</strong>
+                          <small>{item.description}</small>
+                          {item.sourceLabel ? <small>{item.sourceLabel}</small> : null}
+                        </div>
+                        <label className="field assignment-field">
+                          <span>{t.targetPolicy}</span>
+                          <select
+                            value={wizard.ruleAssignments[item.key] ?? "group-default-proxy"}
+                            onChange={(event) =>
+                              setWizard((current) => ({
+                                ...current,
+                                ruleAssignments: {
+                                  ...current.ruleAssignments,
+                                  [item.key]: event.target.value as WizardPolicyTargetId,
+                                },
+                              }))
+                            }
+                          >
+                            {policyTargetOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="section-block">
@@ -628,6 +913,24 @@ export function App() {
                           ))}
                         </select>
                       </div>
+                      <label className="field">
+                        <span>{t.processTarget}</span>
+                        <select
+                          value={wizard.processTarget}
+                          onChange={(event) =>
+                            setWizard((current) => ({
+                              ...current,
+                              processTarget: event.target.value as WizardPolicyTargetId,
+                            }))
+                          }
+                        >
+                          {policyTargetOptions.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       {processStatus === "loading" ? (
                         <p className="helper-text">{t.loadingProcesses}</p>
                       ) : null}
@@ -651,6 +954,24 @@ export function App() {
                     <h3>{t.customDomainSection}</h3>
                     <p>{t.customDomainSectionHelp}</p>
                   </div>
+                  <label className="field">
+                    <span>{t.customDomainTarget}</span>
+                    <select
+                      value={wizard.customDomainTarget}
+                      onChange={(event) =>
+                        setWizard((current) => ({
+                          ...current,
+                          customDomainTarget: event.target.value as WizardPolicyTargetId,
+                        }))
+                      }
+                    >
+                      {policyTargetOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="field">
                     <span>{t.customDomains}</span>
                     <textarea
