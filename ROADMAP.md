@@ -28,3 +28,8 @@
 - macOS packaging
 - Apple mobile companion planning
 - multilingual UI
+
+## Packaging Direction
+
+- Web-first core, then desktop packaging through Tauri for Windows EXE output
+- Keep core project model and renderer logic reusable for future macOS support

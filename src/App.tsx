@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createProjectFromWizard } from "./application/createProjectFromWizard";
+import { explainProject } from "./application/explainProject";
 import { buildProjectArtifact } from "./application/projectPipeline";
 import { platformCapabilities } from "./core/capabilities/platformCapabilities";
 import { builderProjectSchema } from "./core/model/schema";
@@ -41,6 +42,7 @@ export function App() {
 
   const sourceProject = useMemo(() => createProjectFromWizard(wizard), [wizard]);
   const { project, validation, rendered } = buildProjectArtifact(sourceProject);
+  const explanation = explainProject(project);
   const capability = platformCapabilities[project.meta.target];
   const availablePresets = presetPacks.filter((preset) =>
     preset.supportedTargets.includes(wizard.target),
@@ -138,6 +140,22 @@ export function App() {
             ),
           )
           .map((preset) => preset.id),
+        defaultProxyGroupName:
+          parsed.groups.find((group) => group.id === "group-default-proxy")?.name ??
+          "Default Proxy",
+        aiGroupName:
+          parsed.groups.find((group) => group.id === "group-ai-services")?.name ??
+          "AI Services",
+        streamingGroupName:
+          parsed.groups.find((group) => group.id === "group-streaming")?.name ??
+          "Streaming",
+        appleGroupName:
+          parsed.groups.find((group) => group.id === "group-apple")?.name ?? "Apple",
+        finalPolicyMode:
+          parsed.settings.finalPolicy.kind === "builtin" &&
+          parsed.settings.finalPolicy.value === "DIRECT"
+            ? "direct"
+            : "default-proxy",
         enableLanDirect: parsed.settings.enableLanDirect,
         lanCidr:
           parsed.rules.find((rule) => rule.match.kind === "src_ip_cidr")?.match.value ??
@@ -252,6 +270,33 @@ export function App() {
                     <option value="advanced">Advanced</option>
                   </select>
                 </label>
+                <label className="field">
+                  <span>Default proxy group name</span>
+                  <input
+                    value={wizard.defaultProxyGroupName}
+                    onChange={(event) =>
+                      setWizard((current) => ({
+                        ...current,
+                        defaultProxyGroupName: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Final fallback policy</span>
+                  <select
+                    value={wizard.finalPolicyMode}
+                    onChange={(event) =>
+                      setWizard((current) => ({
+                        ...current,
+                        finalPolicyMode: event.target.value as "default-proxy" | "direct",
+                      }))
+                    }
+                  >
+                    <option value="default-proxy">Use default proxy group</option>
+                    <option value="direct">DIRECT</option>
+                  </select>
+                </label>
                 <div className="hint">
                   <strong>{capability.label}</strong>
                   <span>
@@ -331,6 +376,42 @@ export function App() {
             <section className="grid">
               <article className="panel">
                 <h2>Step 4. Routing Inputs</h2>
+                <label className="field">
+                  <span>AI group name</span>
+                  <input
+                    value={wizard.aiGroupName}
+                    onChange={(event) =>
+                      setWizard((current) => ({
+                        ...current,
+                        aiGroupName: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Streaming group name</span>
+                  <input
+                    value={wizard.streamingGroupName}
+                    onChange={(event) =>
+                      setWizard((current) => ({
+                        ...current,
+                        streamingGroupName: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Apple group name</span>
+                  <input
+                    value={wizard.appleGroupName}
+                    onChange={(event) =>
+                      setWizard((current) => ({
+                        ...current,
+                        appleGroupName: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
                 <label className="check-row">
                   <input
                     checked={wizard.enableLanDirect}
@@ -441,6 +522,17 @@ export function App() {
               </section>
 
               <section className="grid">
+                <article className="panel">
+                  <h2>Generated Explanation</h2>
+                  <div className="stack">
+                    {explanation.map((item, index) => (
+                      <p className="explanation-line" key={`${index}-${item}`}>
+                        {item}
+                      </p>
+                    ))}
+                  </div>
+                </article>
+
                 <article className="panel">
                   <h2>Project JSON Preview</h2>
                   <pre>{JSON.stringify(project, null, 2)}</pre>

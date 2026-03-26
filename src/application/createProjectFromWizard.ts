@@ -1,5 +1,6 @@
 import type {
   BuilderProject,
+  BuiltinPolicy,
   GroupSpec,
   ProxyProviderSpec,
   RuleProviderSpec,
@@ -9,11 +10,36 @@ import type {
 import { presetPacks } from "../core/presets/presetPacks";
 import type { WizardState } from "../features/wizard/types";
 
-function buildBaseGroups(target: TargetPlatform): GroupSpec[] {
+function renameGroup(group: GroupSpec, state: WizardState): GroupSpec {
+  const groupNameMap: Record<string, string> = {
+    "group-default-proxy": state.defaultProxyGroupName,
+    "group-ai-services": state.aiGroupName,
+    "group-streaming": state.streamingGroupName,
+    "group-apple": state.appleGroupName,
+  };
+
+  return {
+    ...group,
+    name: groupNameMap[group.id] ?? group.name,
+  };
+}
+
+function renameRuleTarget(name: string, state: WizardState): string {
+  const targetMap: Record<string, string> = {
+    "Default Proxy": state.defaultProxyGroupName,
+    "AI Services": state.aiGroupName,
+    Streaming: state.streamingGroupName,
+    Apple: state.appleGroupName,
+  };
+
+  return targetMap[name] ?? name;
+}
+
+function buildBaseGroups(target: TargetPlatform, state: WizardState): GroupSpec[] {
   const defaults: GroupSpec[] = [
     {
       id: "group-default-proxy",
-      name: "Default Proxy",
+      name: state.defaultProxyGroupName,
       type: "select",
       members: [
         { kind: "builtin", value: "DIRECT" },
@@ -94,7 +120,7 @@ function buildProcessRule(processName: string): RuleSpec | null {
   };
 }
 
-function buildCustomDomainRules(domains: string): RuleSpec[] {
+function buildCustomDomainRules(domains: string, state: WizardState): RuleSpec[] {
   return domains
     .split(/\r?\n/)
     .map((item) => item.trim())
@@ -102,11 +128,29 @@ function buildCustomDomainRules(domains: string): RuleSpec[] {
     .map((domain, index) => ({
       id: `rule-custom-domain-${index + 1}`,
       match: { kind: "domain_suffix" as const, value: domain },
-      policy: { kind: "group" as const, value: "Default Proxy" },
+      policy: { kind: "group" as const, value: state.defaultProxyGroupName },
       priority: 200 + index,
       enabled: true,
       comment: "Custom domain routing.",
     }));
+}
+
+function buildFinalPolicy(state: WizardState): { kind: "builtin"; value: BuiltinPolicy } | { kind: "group"; value: string } {
+  if (state.finalPolicyMode === "direct") {
+    return { kind: "builtin", value: "DIRECT" };
+  }
+
+  return { kind: "group", value: state.defaultProxyGroupName };
+}
+
+function renamePresetRules(rules: RuleSpec[], state: WizardState): RuleSpec[] {
+  return rules.map((rule) => ({
+    ...rule,
+    policy:
+      rule.policy.kind === "group"
+        ? { ...rule.policy, value: renameRuleTarget(rule.policy.value, state) }
+        : rule.policy,
+  }));
 }
 
 export function createProjectFromWizard(state: WizardState): BuilderProject {
@@ -116,8 +160,8 @@ export function createProjectFromWizard(state: WizardState): BuilderProject {
   );
 
   const groups = mergeUniqueById([
-    ...buildBaseGroups(state.target),
-    ...selectedPresets.flatMap((preset) => preset.groups),
+    ...buildBaseGroups(state.target, state),
+    ...selectedPresets.flatMap((preset) => preset.groups.map((group) => renameGroup(group, state))),
   ]);
 
   const proxyProviders = buildBaseProxyProviders();
@@ -128,8 +172,8 @@ export function createProjectFromWizard(state: WizardState): BuilderProject {
 
   const rules = mergeUniqueById<RuleSpec>([
     ...(state.enableLanDirect ? [buildLanRule(state.lanCidr)] : []),
-    ...selectedPresets.flatMap((preset) => preset.rules),
-    ...buildCustomDomainRules(state.customDomains),
+    ...selectedPresets.flatMap((preset) => renamePresetRules(preset.rules, state)),
+    ...buildCustomDomainRules(state.customDomains, state),
     ...(state.target === "windows-mihomo"
       ? [buildProcessRule(state.processName)].filter(
           (rule): rule is RuleSpec => Boolean(rule),
@@ -138,7 +182,7 @@ export function createProjectFromWizard(state: WizardState): BuilderProject {
     {
       id: "rule-final-match",
       match: { kind: "match" },
-      policy: { kind: "group", value: "Default Proxy" },
+      policy: buildFinalPolicy(state),
       priority: 9999,
       enabled: true,
       comment: "Final fallback.",
@@ -155,7 +199,7 @@ export function createProjectFromWizard(state: WizardState): BuilderProject {
       updatedAt: now,
     },
     settings: {
-      finalPolicy: { kind: "group", value: "Default Proxy" },
+      finalPolicy: buildFinalPolicy(state),
       enableLanDirect: state.enableLanDirect,
       enableAdBlock: state.selectedPresetIds.includes("preset-adblock"),
     },

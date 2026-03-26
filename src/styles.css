@@ -251,6 +251,11 @@ ul {
   color: #35516f;
 }
 
+.explanation-line {
+  margin: 0;
+  color: #35516f;
+}
+
 .source-card a {
   color: #2d649f;
   text-decoration: none;

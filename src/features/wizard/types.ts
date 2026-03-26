@@ -5,6 +5,11 @@ export interface WizardState {
   target: TargetPlatform;
   mode: "simple" | "advanced";
   selectedPresetIds: string[];
+  defaultProxyGroupName: string;
+  aiGroupName: string;
+  streamingGroupName: string;
+  appleGroupName: string;
+  finalPolicyMode: "default-proxy" | "direct";
   enableLanDirect: boolean;
   lanCidr: string;
   processName: string;
