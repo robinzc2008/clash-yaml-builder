@@ -1319,15 +1319,18 @@ export function App() {
                   </p>
                   <div className="action-row" style={{ flexWrap: "wrap", gap: "6px" }}>
                     {regionPresets.map((preset) => {
-                      const already = wizard.regionGroups.some((r) => r.id === preset.id);
+                      const existing = wizard.regionGroups.find((r) => r.id === preset.id);
+                      const displayName = existing
+                        ? existing.name
+                        : (wizard.language === "zh" ? preset.nameZh : preset.name);
                       return (
                         <button
                           key={preset.id}
                           type="button"
-                          className={`action-button ${already ? "" : "action-button-ghost"}`}
+                          className={`action-button ${existing ? "" : "action-button-ghost"}`}
                           onClick={() => toggleRegionPreset(preset.id)}
                         >
-                          {already ? "✓ " : ""}{wizard.language === "zh" ? preset.nameZh : preset.name}
+                          {existing ? "✓ " : ""}{displayName}
                         </button>
                       );
                     })}

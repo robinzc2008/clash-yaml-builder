@@ -774,6 +774,23 @@ a:hover {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+.field select,
+.process-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+  cursor: pointer;
+}
+
+.field select option,
+.process-select option {
+  background: var(--bg-surface-solid);
+  color: var(--text-primary);
+}
+
 .field input::placeholder,
 .field textarea::placeholder {
   color: var(--text-dim);
@@ -789,11 +806,6 @@ a:hover {
 
 .field textarea {
   resize: vertical;
-}
-
-.field select option {
-  background: var(--bg-surface-solid);
-  color: var(--text-primary);
 }
 
 /* ============================================
