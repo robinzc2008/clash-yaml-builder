@@ -60,6 +60,6 @@ export const defaultWizardState: WizardState = {
     "group-streaming": allRegionIds,
     "group-apple": allRegionIds,
   },
-  enableGeoDataMode: true,
+  enableGeoDataMode: false,
   geoDataSource: "loyalsoldier",
 };
