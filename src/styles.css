@@ -413,21 +413,117 @@ ul {
 
 .target-card {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
   text-align: left;
-  padding: 16px;
+  padding: 20px;
   border-radius: 16px;
   border: 1px solid rgba(45, 100, 159, 0.12);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(238, 245, 252, 0.8));
   color: inherit;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+}
+
+.target-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(45, 100, 159, 0.08);
 }
 
 .target-card-active {
   border-color: #2d649f;
   box-shadow: inset 0 0 0 1px #2d649f, 0 10px 24px rgba(45, 100, 159, 0.1);
+}
+
+.target-card-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.target-card-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.target-download-link {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #2d649f;
+  text-decoration: none;
+  font-weight: 500;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.target-download-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* Mode selector */
+.mode-selector {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mode-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.mode-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mode-btn {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(45, 100, 159, 0.12);
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mode-btn strong {
+  font-size: 0.92rem;
+}
+
+.mode-btn small {
+  font-size: 0.78rem;
+  opacity: 0.65;
+  line-height: 1.4;
+}
+
+.mode-btn:hover {
+  border-color: rgba(45, 100, 159, 0.3);
+}
+
+.mode-btn-active {
+  border-color: #2d649f;
+  background: rgba(45, 100, 159, 0.06);
+  box-shadow: inset 0 0 0 1px #2d649f;
+}
+
+.mode-hint {
+  font-size: 0.78rem;
+  color: #5a7a98;
+  margin: 0;
+}
+
+/* Field hint */
+.field-hint {
+  font-size: 0.78rem;
+  color: #5a7a98;
+  line-height: 1.4;
+  margin-top: -2px;
 }
 
 /* ============================================

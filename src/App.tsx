@@ -200,15 +200,25 @@ export function App() {
           domainDragHandle: "Drag to reorder",
         };
 
-  const wizardSteps = [
-    { id: 0, title: t.stepTarget },
-    { id: 1, title: t.stepBasics },
-    { id: 2, title: t.stepSubscriptions },
-    { id: 3, title: t.stepRegions },
-    { id: 4, title: t.stepPresets },
-    { id: 5, title: t.stepInputs },
-    { id: 6, title: t.stepReview },
-  ] as const;
+  const isSimple = wizard.mode === "simple";
+  const wizardSteps = isSimple
+    ? [
+        { id: 0, title: t.stepTarget },
+        { id: 1, title: t.stepBasics },
+        { id: 2, title: t.stepSubscriptions },
+        { id: 3, title: t.stepRegions },
+        { id: 4, title: t.stepPresets },
+        { id: 6, title: t.stepReview },
+      ] as const
+    : [
+        { id: 0, title: t.stepTarget },
+        { id: 1, title: t.stepBasics },
+        { id: 2, title: t.stepSubscriptions },
+        { id: 3, title: t.stepRegions },
+        { id: 4, title: t.stepPresets },
+        { id: 5, title: t.stepInputs },
+        { id: 6, title: t.stepReview },
+      ] as const;
 
   const presetCategoryLabels = {
     foundation: t.foundation,
@@ -344,8 +354,22 @@ export function App() {
     setProcessError("");
   }
 
-  function goToStep(step: number) {
-    setCurrentStep(Math.max(0, Math.min(step, wizardSteps.length - 1)));
+  const stepIds = wizardSteps.map((s) => s.id);
+
+  function goToStep(stepId: number) {
+    if (stepIds.includes(stepId as typeof stepIds[number])) {
+      setCurrentStep(stepId);
+    }
+  }
+
+  function goToPrevStep() {
+    const idx = stepIds.indexOf(currentStep as typeof stepIds[number]);
+    if (idx > 0) setCurrentStep(stepIds[idx - 1]);
+  }
+
+  function goToNextStep() {
+    const idx = stepIds.indexOf(currentStep as typeof stepIds[number]);
+    if (idx < stepIds.length - 1) setCurrentStep(stepIds[idx + 1]);
   }
 
   function togglePreset(presetId: string) {
@@ -979,9 +1003,19 @@ export function App() {
                         onClick={() => updateTarget(target.id)}
                         type="button"
                       >
+                        <span className="target-card-icon" dangerouslySetInnerHTML={{ __html: target.icon }} />
                         <strong>{localized?.title ?? target.title}</strong>
                         <span>{localized?.summary ?? target.summary}</span>
                         <small>{localized?.idealFor ?? target.idealFor}</small>
+                        <a
+                          className="target-download-link"
+                          href={target.downloadUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {localized?.downloadLabel ?? target.downloadLabel}
+                        </a>
                       </button>
                     );
                   })}
@@ -1007,21 +1041,28 @@ export function App() {
                     }
                   />
                 </label>
-                <label className="field">
-                  <span>{t.mode}</span>
-                  <select
-                    value={wizard.mode}
-                    onChange={(event) =>
-                      setWizard((current) => ({
-                        ...current,
-                        mode: event.target.value as "simple" | "advanced",
-                      }))
-                    }
-                  >
-                    <option value="simple">{t.simple}</option>
-                    <option value="advanced">{t.advanced}</option>
-                  </select>
-                </label>
+                <div className="mode-selector">
+                  <span className="mode-label">{t.mode}</span>
+                  <div className="mode-buttons">
+                    <button
+                      type="button"
+                      className={`mode-btn ${wizard.mode === "simple" ? "mode-btn-active" : ""}`}
+                      onClick={() => setWizard((c) => ({ ...c, mode: "simple" }))}
+                    >
+                      <strong>{t.simple}</strong>
+                      <small>{t.simpleHelp}</small>
+                    </button>
+                    <button
+                      type="button"
+                      className={`mode-btn ${wizard.mode === "advanced" ? "mode-btn-active" : ""}`}
+                      onClick={() => setWizard((c) => ({ ...c, mode: "advanced" }))}
+                    >
+                      <strong>{t.advanced}</strong>
+                      <small>{t.advancedHelp}</small>
+                    </button>
+                  </div>
+                  <p className="mode-hint">{t.modeHelp}</p>
+                </div>
                 <label className="field">
                   <span>{t.defaultProxyGroupName}</span>
                   <input
@@ -1572,6 +1613,9 @@ export function App() {
                         setWizard((current) => ({ ...current, lanCidr: event.target.value }))
                       }
                     />
+                    {(t as Record<string, string>).lanCidrHelp ? (
+                      <small className="field-hint">{(t as Record<string, string>).lanCidrHelp}</small>
+                    ) : null}
                   </label>
                 </div>
 
@@ -1865,16 +1909,16 @@ export function App() {
             <button
               type="button"
               className="action-button action-button-ghost"
-              onClick={() => goToStep(currentStep - 1)}
-              disabled={currentStep === 0}
+              onClick={goToPrevStep}
+              disabled={currentStep === stepIds[0]}
             >
               {t.previous}
             </button>
             <button
               type="button"
               className="action-button"
-              onClick={() => goToStep(currentStep + 1)}
-              disabled={currentStep === wizardSteps.length - 1}
+              onClick={goToNextStep}
+              disabled={currentStep === stepIds[stepIds.length - 1]}
             >
               {t.next}
             </button>
