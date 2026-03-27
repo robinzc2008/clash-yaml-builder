@@ -1,10 +1,11 @@
 export const META_RULES_DAT_REPO =
   "https://github.com/MetaCubeX/meta-rules-dat";
 
-const META_TREES_API =
-  "https://api.github.com/repos/MetaCubeX/meta-rules-dat/git/trees/meta?recursive=1";
+/** 分支名 → 用于解析根 tree（勿对整个仓库 recursive，超大时会 truncated 且只剩 asn 等前缀片段） */
+const META_BRANCH = "meta";
+const META_TREES_ROOT_API = `https://api.github.com/repos/MetaCubeX/meta-rules-dat/git/trees/${META_BRANCH}`;
 const META_BRANCH_RAW_BASE =
-  "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo";
+  `https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/${META_BRANCH}/geo`;
 
 export type MetaRulesDatGeositeKey =
   | "openai"
@@ -120,23 +121,47 @@ function buildRemoteRuleItemFromTree(
 }
 
 /**
- * 使用 Git Trees API 一次性拉取整棵目录树，然后从中筛选 geo/geosite/*.yaml 和 geo/geoip/*.yaml。
- * 这比旧的 Contents API 可靠得多 — Contents API 对单目录有 1000 文件上限，
- * 而 geosite 目录（yaml + list + mrs）经常刚好卡在这个边界，导致部分规则丢失。
+ * 拉取 MetaCubeX geo 规则全量目录（geosite + geoip 的 .yaml）。
+ *
+ * 说明：不能对仓库根直接用 `?recursive=1` — GitHub 会在超大树上设置 `truncated: true`，
+ * 返回的 `tree` 往往只有最前面的目录（例如全是 `asn/`），从而导致 geo 规则数为 0。
+ * 正确做法：先取分支根 tree（非 recursive），找到 `geo` 子目录的 SHA，再对该子 tree 做 recursive。
  */
 export async function fetchMetaRulesDatRemoteCatalog(): Promise<MetaRulesDatRemoteItem[]> {
-  const response = await fetch(META_TREES_API, {
+  const rootResponse = await fetch(META_TREES_ROOT_API, {
     headers: { Accept: "application/vnd.github+json" },
   });
 
-  if (!response.ok) {
-    throw new Error(`GitHub Trees API returned ${response.status}`);
+  if (!rootResponse.ok) {
+    throw new Error(`GitHub Trees API (root) returned ${rootResponse.status}`);
   }
 
-  const data = (await response.json()) as GitHubTreeResponse;
+  const rootData = (await rootResponse.json()) as GitHubTreeResponse;
+  const geoEntry = rootData.tree.find((e) => e.path === "geo" && e.type === "tree");
 
-  const geositePrefix = "geo/geosite/";
-  const geoipPrefix = "geo/geoip/";
+  if (!geoEntry) {
+    throw new Error("meta-rules-dat: root tree has no geo/ directory");
+  }
+
+  const geoResponse = await fetch(`${geoEntry.url}?recursive=1`, {
+    headers: { Accept: "application/vnd.github+json" },
+  });
+
+  if (!geoResponse.ok) {
+    throw new Error(`GitHub Trees API (geo) returned ${geoResponse.status}`);
+  }
+
+  const data = (await geoResponse.json()) as GitHubTreeResponse;
+
+  if (data.truncated) {
+    throw new Error(
+      "meta-rules-dat: geo tree still truncated — report upstream or split geosite/geoip fetches",
+    );
+  }
+
+  /** 子树内路径为 geosite/foo.yaml、geoip/cn.yaml（无前缀 geo/） */
+  const geositePrefix = "geosite/";
+  const geoipPrefix = "geoip/";
   const yamlSuffix = ".yaml";
 
   const items: MetaRulesDatRemoteItem[] = [];

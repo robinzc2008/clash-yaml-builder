@@ -22,7 +22,7 @@ This tool takes your intent — "which apps should go through which region's pro
 - **Region node groups** — organize nodes by country/area (Hong Kong, Japan, USA…) with customizable regex filters
 - **Regex helper** — generate regex patterns from plain keywords, supports include + exclude logic
 - **Strategy groups** — assign which region nodes each app category (AI, Streaming, etc.) can use
-- **Rule library** — built-in presets + full MetaCubeX online rule catalog with search
+- **Rule library** — built-in presets + full MetaCubeX online rule catalog with search (loads the `geo/` tree reliably via GitHub’s API — no more empty sync when the repo root tree is truncated)
 - **Simple / Advanced mode** — beginners get fewer steps with auto-assigned rules; power users get full control
 - **Live YAML preview** — see the generated configuration in real-time before exporting
 - **Project import/export** — save and reload your configuration as JSON
@@ -78,6 +78,11 @@ src/
 - **Rule abstraction** — rule sources (built-in presets, online catalog) are decoupled from the UI
 - **Low refactoring cost** — new platforms, rule sources, or routing scenarios each only touch one layer
 
+### Changelog
+
+- **v0.2.1** — Fixed MetaCubeX full rule catalog sync returning no rules (GitHub truncates huge recursive trees at repo root; the app now requests the `geo/` subtree so geosite/geoip YAML entries appear in search again). Version bump for Windows desktop builds.
+- **Earlier versions** — See [GitHub Releases](https://github.com/robinzc2008/clash-yaml-builder/releases).
+
 ### License
 
 MIT
@@ -106,7 +111,7 @@ MIT
 - **地区节点组** — 按国家/地区整理节点（香港、日本、美国…），支持自定义正则过滤
 - **正则助手** — 用关键词自动生成正则表达式，支持「包含 + 排除」逻辑
 - **策略组** — 为每个应用分类（AI、流媒体等）指定可用的地区节点
-- **规则库** — 内置规则包 + MetaCubeX 在线规则全量搜索
+- **规则库** — 内置规则包 + MetaCubeX 在线规则全量搜索（通过 GitHub 单独拉取 `geo/` 子树，避免根目录递归树被截断后同步结果为空）
 - **简单 / 高级模式** — 新手少步骤自动分配；进阶用户完全掌控
 - **实时 YAML 预览** — 导出前实时查看生成的配置
 - **项目导入/导出** — 保存和加载配置为 JSON 文件
@@ -161,6 +166,11 @@ src/
 - **分层架构** — 加新平台只需新增渲染器 + 功能定义
 - **规则抽象** — 规则来源（内置包、在线目录）与 UI 解耦
 - **低重构成本** — 新平台、新规则源、新分流场景各自只改一层
+
+### 更新记录
+
+- **v0.2.1** — 修复 MetaCubeX 全量规则库同步后条数为 0 的问题（GitHub 对超大仓库的根目录 recursive tree 会截断，导致拿不到 `geo/`；现改为先取 `geo` 子目录再递归，geosite/geoip 规则恢复可搜索）。同步更新 Windows 桌面端版本号。
+- **更早版本** — 见 [GitHub Releases](https://github.com/robinzc2008/clash-yaml-builder/releases)。
 
 ### 许可
 
