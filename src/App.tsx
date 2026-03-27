@@ -884,6 +884,27 @@ export function App() {
   }
 
   const [showGuide, setShowGuide] = useState(false);
+  const [regexHelperId, setRegexHelperId] = useState<string | null>(null);
+  const [regexKeywords, setRegexKeywords] = useState("");
+
+  function generateRegexFromKeywords(keywords: string): string {
+    const parts = keywords
+      .split(/[,，]/)
+      .map((k) => k.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return "";
+    const escaped = parts.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    return `(?i)(${escaped.join("|")})`;
+  }
+
+  function applyRegexToRegion(regionId: string) {
+    const regex = generateRegexFromKeywords(regexKeywords);
+    if (regex) {
+      updateRegionGroup(regionId, { filter: regex });
+    }
+    setRegexHelperId(null);
+    setRegexKeywords("");
+  }
 
   return (
     <main className="app-shell">
@@ -1186,8 +1207,52 @@ export function App() {
                             <input
                               value={region.filter}
                               onChange={(e) => updateRegionGroup(region.id, { filter: e.target.value })}
-                              placeholder="^(?=.*(关键字|(?i)Keyword)).*$"
+                              placeholder="(?i)(香港|HK|Hong Kong)"
                             />
+                            <button
+                              type="button"
+                              className="regex-helper-toggle"
+                              onClick={() => {
+                                if (regexHelperId === region.id) {
+                                  setRegexHelperId(null);
+                                  setRegexKeywords("");
+                                } else {
+                                  setRegexHelperId(region.id);
+                                  setRegexKeywords("");
+                                }
+                              }}
+                            >
+                              {regexHelperId === region.id ? t.regexHelperHide : t.regexHelperToggle}
+                            </button>
+                            {regexHelperId === region.id ? (
+                              <div className="regex-helper">
+                                <span className="regex-helper-label">{t.regexHelperToggle}</span>
+                                <div className="regex-helper-row">
+                                  <input
+                                    value={regexKeywords}
+                                    onChange={(e) => setRegexKeywords(e.target.value)}
+                                    placeholder={t.regexHelperPlaceholder}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") applyRegexToRegion(region.id);
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="action-button"
+                                    onClick={() => applyRegexToRegion(region.id)}
+                                    disabled={!regexKeywords.trim()}
+                                  >
+                                    {t.regexHelperGenerate}
+                                  </button>
+                                </div>
+                                <p className="regex-helper-hint">{t.regexHelperHint}</p>
+                                {regexKeywords.trim() ? (
+                                  <code className="code-inline" style={{ fontSize: "0.78rem", wordBreak: "break-all" }}>
+                                    {generateRegexFromKeywords(regexKeywords)}
+                                  </code>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </label>
                           <label className="field compact-field">
                             <span>{wizard.language === "zh" ? "选节点方式" : "Selection mode"}</span>
