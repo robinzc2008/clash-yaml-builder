@@ -36,6 +36,11 @@ export const builderProjectSchema = z.object({
           z.object({ kind: z.literal("proxy"), value: z.string() }),
         ]),
       ),
+      includeAll: z.boolean().optional(),
+      filter: z.string().optional(),
+      tolerance: z.number().optional(),
+      testInterval: z.number().optional(),
+      testUrl: z.string().optional(),
     }),
   ),
   proxyProviders: z.array(
@@ -48,6 +53,14 @@ export const builderProjectSchema = z.object({
       interval: z.number().optional(),
       filter: z.string().optional(),
       excludeFilter: z.string().optional(),
+      healthCheck: z
+        .object({
+          enable: z.boolean(),
+          url: z.string(),
+          interval: z.number(),
+        })
+        .optional(),
+      fetchProxy: z.string().optional(),
     }),
   ),
   ruleProviders: z.array(

@@ -1,9 +1,8 @@
-import type { GroupSpec, RuleProviderSpec, RuleSpec } from "../model/types";
+import type { AppLanguage, GroupSpec, RuleProviderSpec, RuleSpec } from "../model/types";
 import {
   META_RULES_DAT_REPO,
   metaRulesDatCatalog,
 } from "../sources/metaRulesDat";
-import type { AppLanguage } from "../../features/wizard/types";
 
 export interface PresetPack {
   id: string;

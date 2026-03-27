@@ -1,6 +1,6 @@
 import type { BuilderProject, RenderedConfig } from "../model/types";
 import {
-  renderGroupMember,
+  renderProxyGroup,
   renderProxyProvider,
   renderRuleProvider,
   renderRule,
@@ -8,11 +8,9 @@ import {
 } from "./shared";
 
 export function renderWindowsMihomo(project: BuilderProject): RenderedConfig {
-  const proxyGroups = project.groups.map((group) => ({
-    name: group.name,
-    type: group.type,
-    proxies: group.members.map((member) => renderGroupMember(member, project)),
-  }));
+  const proxyGroups = project.groups.map((group) =>
+    renderProxyGroup(group, project),
+  );
 
   const proxyProviders = Object.fromEntries(
     project.proxyProviders.map((provider) => [
@@ -32,15 +30,18 @@ export function renderWindowsMihomo(project: BuilderProject): RenderedConfig {
     .filter((rule) => rule.enabled)
     .map((rule) => renderRule(rule));
 
+  const output: Record<string, unknown> = {
+    "proxy-providers": proxyProviders,
+    proxies: [{ name: "直连", type: "direct" }],
+    "proxy-groups": proxyGroups,
+    "rule-providers": ruleProviders,
+    rules,
+  };
+
   return {
     target: "windows-mihomo",
     format: "yaml",
     warnings: [],
-    content: stringifyYaml({
-      "proxy-providers": proxyProviders,
-      "proxy-groups": proxyGroups,
-      "rule-providers": ruleProviders,
-      rules,
-    }),
+    content: stringifyYaml(output),
   };
 }

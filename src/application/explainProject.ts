@@ -1,5 +1,4 @@
-import type { BuilderProject } from "../core/model/types";
-import type { AppLanguage } from "../features/wizard/types";
+import type { AppLanguage, BuilderProject } from "../core/model/types";
 
 export function explainProject(project: BuilderProject, language: AppLanguage): string[] {
   const lines: string[] = [];
@@ -38,8 +37,19 @@ export function explainProject(project: BuilderProject, language: AppLanguage): 
       }
     }
 
+    const regionGroupCount = project.groups.filter((g) => g.includeAll).length;
+    const serviceGroupCount = project.groups.length - regionGroupCount;
+    const subCount = project.proxyProviders.length;
+
+    if (subCount > 0) {
+      lines.push(`配置了 ${subCount} 个订阅源作为 proxy-providers。`);
+    }
+    if (regionGroupCount > 0) {
+      lines.push(`启用了 ${regionGroupCount} 个地区节点组（按正则筛选节点，自动测速选优）。`);
+    }
+
     lines.push(
-      `最终输出包含 ${project.groups.length} 个策略组、${project.ruleProviders.length} 个规则源，以及 ${project.rules.length} 条规则。`,
+      `最终输出包含 ${serviceGroupCount} 个服务策略组、${regionGroupCount} 个地区节点组、${project.ruleProviders.length} 个规则源，以及 ${project.rules.length} 条规则。`,
     );
     return lines;
   }
@@ -82,8 +92,19 @@ export function explainProject(project: BuilderProject, language: AppLanguage): 
     }
   }
 
+  const regionGroupCount = project.groups.filter((g) => g.includeAll).length;
+  const serviceGroupCount = project.groups.length - regionGroupCount;
+  const subCount = project.proxyProviders.length;
+
+  if (subCount > 0) {
+    lines.push(`${subCount} subscription source(s) configured as proxy-providers.`);
+  }
+  if (regionGroupCount > 0) {
+    lines.push(`${regionGroupCount} region node group(s) enabled for auto-selection by latency.`);
+  }
+
   lines.push(
-    `The generated output includes ${project.groups.length} policy groups, ${project.ruleProviders.length} rule providers, and ${project.rules.length} total rules.`,
+    `The generated output includes ${serviceGroupCount} service groups, ${regionGroupCount} region groups, ${project.ruleProviders.length} rule providers, and ${project.rules.length} total rules.`,
   );
 
   return lines;

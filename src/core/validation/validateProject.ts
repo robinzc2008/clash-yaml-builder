@@ -14,8 +14,15 @@ function validateGroupReferences(project: BuilderProject): ValidationIssue[] {
   );
 
   for (const group of project.groups) {
+    // includeAll 地区组不通过 members 引用节点，跳过成员检查
+    if (group.includeAll) continue;
+
     for (const member of group.members) {
-      if (member.kind === "group" && !groupIds.has(member.ref)) {
+      if (
+        member.kind === "group" &&
+        !groupIds.has(member.ref) &&
+        !groupNames.has(member.ref)
+      ) {
         issues.push({
           id: `missing-group-ref-${group.id}-${member.ref}`,
           severity: "error",

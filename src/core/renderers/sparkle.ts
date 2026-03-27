@@ -1,6 +1,6 @@
 import type { BuilderProject, RenderedConfig } from "../model/types";
 import {
-  renderGroupMember,
+  renderProxyGroup,
   renderProxyProvider,
   renderRuleProvider,
   renderRule,
@@ -8,11 +8,9 @@ import {
 } from "./shared";
 
 export function renderSparkle(project: BuilderProject): RenderedConfig {
-  const groups = project.groups.map((group) => ({
-    name: group.name,
-    type: group.type,
-    proxies: group.members.map((member) => renderGroupMember(member, project)),
-  }));
+  const groups = project.groups.map((group) =>
+    renderProxyGroup(group, project),
+  );
 
   const proxyProviders = Object.fromEntries(
     project.proxyProviders.map((provider) => [

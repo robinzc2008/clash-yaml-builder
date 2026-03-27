@@ -1,3 +1,5 @@
+export type AppLanguage = "en" | "zh";
+
 export type TargetPlatform = "openclash" | "windows-mihomo" | "sparkle";
 
 export type MatchKind =
@@ -26,11 +28,27 @@ export type ProviderSourceType = "http" | "file" | "inline";
 
 export type SupportState = "supported" | "unsupported";
 
+export interface HealthCheckSpec {
+  enable: boolean;
+  url: string;
+  interval: number;
+}
+
 export interface GroupSpec {
   id: string;
   name: string;
   type: GroupType;
   members: GroupMember[];
+  /** 从所有 proxy-providers 拉取全部节点（地区组用） */
+  includeAll?: boolean;
+  /** 按节点名正则筛选（地区组用） */
+  filter?: string;
+  /** url-test/fallback 的延迟容忍度（ms） */
+  tolerance?: number;
+  /** url-test/fallback 的测速间隔（秒） */
+  testInterval?: number;
+  /** 测速 URL */
+  testUrl?: string;
   platformConstraints?: Partial<Record<TargetPlatform, SupportState>>;
 }
 
@@ -49,6 +67,9 @@ export interface ProxyProviderSpec {
   interval?: number;
   filter?: string;
   excludeFilter?: string;
+  healthCheck?: HealthCheckSpec;
+  /** 拉取订阅时走的代理（如 "直连"） */
+  fetchProxy?: string;
 }
 
 export interface RuleProviderSpec {

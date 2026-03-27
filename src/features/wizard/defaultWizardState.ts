@@ -1,4 +1,8 @@
-﻿import type { WizardState } from "./types";
+import { buildDefaultRegionGroups } from "../../core/presets/regionPresets";
+import type { WizardState } from "./types";
+
+const defaultRegions = buildDefaultRegionGroups("zh");
+const allRegionIds = defaultRegions.map((r) => r.id);
 
 export const defaultWizardState: WizardState = {
   language: "zh",
@@ -19,10 +23,10 @@ export const defaultWizardState: WizardState = {
     "preset:preset-github": "group-default-proxy",
     "preset:preset-streaming": "group-streaming",
   },
-  defaultProxyGroupName: "Default Proxy",
-  aiGroupName: "AI Services",
-  streamingGroupName: "Streaming",
-  appleGroupName: "Apple",
+  defaultProxyGroupName: "🚀 默认代理",
+  aiGroupName: "🤖 AI",
+  streamingGroupName: "📹 流媒体",
+  appleGroupName: "🍎 Apple",
   customGroups: [],
   finalPolicyMode: "default-proxy",
   enableLanDirect: true,
@@ -46,4 +50,14 @@ export const defaultWizardState: WizardState = {
       target: "group-ai-services",
     },
   ],
+  subscriptions: [
+    { id: "sub-1", name: "airport1", url: "" },
+  ],
+  regionGroups: defaultRegions,
+  serviceGroupRegions: {
+    "group-default-proxy": allRegionIds,
+    "group-ai-services": allRegionIds,
+    "group-streaming": allRegionIds,
+    "group-apple": allRegionIds,
+  },
 };

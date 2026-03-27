@@ -2,6 +2,7 @@ import YAML from "yaml";
 import type {
   BuilderProject,
   GroupMember,
+  GroupSpec,
   PolicyRef,
   ProxyProviderSpec,
   RuleProviderSpec,
@@ -17,7 +18,9 @@ export function renderGroupMember(member: GroupMember, project: BuilderProject):
     case "builtin":
       return member.value;
     case "group": {
-      const group = project.groups.find((item) => item.id === member.ref);
+      const group = project.groups.find(
+        (item) => item.id === member.ref || item.name === member.ref,
+      );
       return group?.name ?? member.ref;
     }
     case "proxy-provider": {
@@ -29,6 +32,33 @@ export function renderGroupMember(member: GroupMember, project: BuilderProject):
   }
 }
 
+/**
+ * 把 GroupSpec 渲染成 Clash proxy-groups 条目。
+ * 地区组用 include-all + filter，服务组用 proxies 列表。
+ */
+export function renderProxyGroup(
+  group: GroupSpec,
+  project: BuilderProject,
+): Record<string, unknown> {
+  if (group.includeAll) {
+    const entry: Record<string, unknown> = {
+      name: group.name,
+      type: group.type,
+      "include-all": true,
+    };
+    if (group.filter) entry.filter = group.filter;
+    if (group.tolerance) entry.tolerance = group.tolerance;
+    if (group.testInterval) entry.interval = group.testInterval;
+    return entry;
+  }
+
+  return {
+    name: group.name,
+    type: group.type,
+    proxies: group.members.map((member) => renderGroupMember(member, project)),
+  };
+}
+
 export function renderProxyProvider(
   provider: ProxyProviderSpec,
 ): Record<string, unknown> {
@@ -36,21 +66,21 @@ export function renderProxyProvider(
     type: provider.sourceType,
   };
 
-  if (provider.url) {
-    output.url = provider.url;
+  if (provider.url) output.url = provider.url;
+  if (provider.path) output.path = provider.path;
+  if (provider.interval) output.interval = provider.interval;
+  if (provider.filter) output.filter = provider.filter;
+  if (provider.excludeFilter) output["exclude-filter"] = provider.excludeFilter;
+
+  if (provider.healthCheck) {
+    output["health-check"] = {
+      enable: provider.healthCheck.enable,
+      url: provider.healthCheck.url,
+      interval: provider.healthCheck.interval,
+    };
   }
-  if (provider.path) {
-    output.path = provider.path;
-  }
-  if (provider.interval) {
-    output.interval = provider.interval;
-  }
-  if (provider.filter) {
-    output.filter = provider.filter;
-  }
-  if (provider.excludeFilter) {
-    output["exclude-filter"] = provider.excludeFilter;
-  }
+
+  if (provider.fetchProxy) output.proxy = provider.fetchProxy;
 
   return output;
 }
@@ -63,21 +93,11 @@ export function renderRuleProvider(
     behavior: provider.behavior,
   };
 
-  if (provider.format) {
-    output.format = provider.format;
-  }
-  if (provider.url) {
-    output.url = provider.url;
-  }
-  if (provider.path) {
-    output.path = provider.path;
-  }
-  if (provider.interval) {
-    output.interval = provider.interval;
-  }
-  if (provider.payload) {
-    output.payload = provider.payload;
-  }
+  if (provider.format) output.format = provider.format;
+  if (provider.url) output.url = provider.url;
+  if (provider.path) output.path = provider.path;
+  if (provider.interval) output.interval = provider.interval;
+  if (provider.payload) output.payload = provider.payload;
 
   return output;
 }

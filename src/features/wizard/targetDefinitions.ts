@@ -1,5 +1,4 @@
-import type { TargetPlatform } from "../../core/model/types";
-import type { AppLanguage } from "./types";
+import type { AppLanguage, TargetPlatform } from "../../core/model/types";
 
 export interface TargetDefinition {
   id: TargetPlatform;

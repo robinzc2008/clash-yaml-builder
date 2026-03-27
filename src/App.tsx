@@ -6,6 +6,7 @@ import logoMark from "./assets/logo-mark.svg";
 import { platformCapabilities } from "./core/capabilities/platformCapabilities";
 import { builderProjectSchema } from "./core/model/schema";
 import { presetPacks } from "./core/presets/presetPacks";
+import { regionPresets } from "./core/presets/regionPresets";
 import {
   META_RULES_DAT_REPO,
   fetchMetaRulesDatRemoteCatalog,
@@ -34,6 +35,8 @@ import type {
   WizardDomainRule,
   WizardPolicyTargetId,
   WizardProcessRule,
+  WizardRegionGroup,
+  WizardSubscription,
 } from "./features/wizard/types";
 import { messages } from "./i18n/messages";
 
@@ -200,9 +203,11 @@ export function App() {
   const wizardSteps = [
     { id: 0, title: t.stepTarget },
     { id: 1, title: t.stepBasics },
-    { id: 2, title: t.stepPresets },
-    { id: 3, title: t.stepInputs },
-    { id: 4, title: t.stepReview },
+    { id: 2, title: t.stepSubscriptions },
+    { id: 3, title: t.stepRegions },
+    { id: 4, title: t.stepPresets },
+    { id: 5, title: t.stepInputs },
+    { id: 6, title: t.stepReview },
   ] as const;
 
   const presetCategoryLabels = {
@@ -292,7 +297,7 @@ export function App() {
   }, [wizard, currentStep]);
 
   useEffect(() => {
-    if (currentStep !== 2 || remoteStatus !== "idle") {
+    if (currentStep !== 4 || remoteStatus !== "idle") {
       return;
     }
 
@@ -300,7 +305,7 @@ export function App() {
   }, [currentStep, remoteStatus]);
 
   useEffect(() => {
-    if (currentStep !== 3 || !showProcessSection || processStatus !== "idle") {
+    if (currentStep !== 5 || !showProcessSection || processStatus !== "idle") {
       return;
     }
 
@@ -444,6 +449,119 @@ export function App() {
         rule.target === targetId ? { ...rule, target: "group-default-proxy" } : rule,
       ),
     }));
+  }
+
+  /* ---- 订阅管理 ---- */
+
+  function addSubscription() {
+    setWizard((current) => ({
+      ...current,
+      subscriptions: [
+        ...current.subscriptions,
+        {
+          id: `sub-${Date.now().toString(36)}`,
+          name: `airport${current.subscriptions.length + 1}`,
+          url: "",
+        } satisfies WizardSubscription,
+      ],
+    }));
+  }
+
+  function updateSubscription(subId: string, patch: Partial<WizardSubscription>) {
+    setWizard((current) => ({
+      ...current,
+      subscriptions: current.subscriptions.map((sub) =>
+        sub.id === subId ? { ...sub, ...patch } : sub,
+      ),
+    }));
+  }
+
+  function removeSubscription(subId: string) {
+    setWizard((current) => ({
+      ...current,
+      subscriptions: current.subscriptions.length > 1
+        ? current.subscriptions.filter((sub) => sub.id !== subId)
+        : current.subscriptions,
+    }));
+  }
+
+  /* ---- 地区节点组 ---- */
+
+  function addRegionFromPreset(presetId: string) {
+    const preset = regionPresets.find((p) => p.id === presetId);
+    if (!preset) return;
+    setWizard((current) => {
+      if (current.regionGroups.some((r) => r.id === presetId)) return current;
+      return {
+        ...current,
+        regionGroups: [
+          ...current.regionGroups,
+          {
+            id: preset.id,
+            name: current.language === "zh" ? preset.nameZh : preset.name,
+            filter: preset.filter,
+            type: preset.type as "select" | "url-test",
+            tolerance: preset.tolerance,
+            interval: preset.interval,
+          },
+        ],
+      };
+    });
+  }
+
+  function addCustomRegion() {
+    setWizard((current) => ({
+      ...current,
+      regionGroups: [
+        ...current.regionGroups,
+        {
+          id: `region-custom-${Date.now().toString(36)}`,
+          name: current.language === "zh" ? `自定义地区 ${current.regionGroups.length + 1}` : `Custom ${current.regionGroups.length + 1}`,
+          filter: "",
+          type: "url-test" as const,
+          tolerance: 20,
+          interval: 60,
+        } satisfies WizardRegionGroup,
+      ],
+    }));
+  }
+
+  function updateRegionGroup(regionId: string, patch: Partial<WizardRegionGroup>) {
+    setWizard((current) => ({
+      ...current,
+      regionGroups: current.regionGroups.map((r) =>
+        r.id === regionId ? { ...r, ...patch } : r,
+      ),
+    }));
+  }
+
+  function removeRegionGroup(regionId: string) {
+    setWizard((current) => ({
+      ...current,
+      regionGroups: current.regionGroups.filter((r) => r.id !== regionId),
+      serviceGroupRegions: Object.fromEntries(
+        Object.entries(current.serviceGroupRegions).map(([k, v]) => [
+          k,
+          v.filter((id) => id !== regionId),
+        ]),
+      ),
+    }));
+  }
+
+  function toggleServiceGroupRegion(groupTargetId: string, regionId: string) {
+    setWizard((current) => {
+      const currentRegions = current.serviceGroupRegions[groupTargetId] ?? [];
+      const exists = currentRegions.includes(regionId);
+      return {
+        ...current,
+        serviceGroupRegions: {
+          ...current.serviceGroupRegions,
+          [groupTargetId]: exists
+            ? currentRegions.filter((id) => id !== regionId)
+            : [...currentRegions, regionId],
+        },
+      };
+    });
   }
 
   async function refreshRunningProcesses() {
@@ -697,6 +815,37 @@ export function App() {
         processRules: processRules.length > 0 ? processRules : [createProcessRuleDraft(1)],
         customDomainRules:
           customDomainRules.length > 0 ? customDomainRules : [createDomainRuleDraft(1)],
+        subscriptions: parsed.proxyProviders.map((provider, index) => ({
+          id: `sub-imported-${index + 1}`,
+          name: provider.name,
+          url: provider.url ?? "",
+        })),
+        regionGroups: parsed.groups
+          .filter((group) => group.includeAll)
+          .map((group) => ({
+            id: group.id,
+            name: group.name,
+            filter: group.filter ?? "",
+            type: (group.type === "url-test" ? "url-test" : "select") as "select" | "url-test",
+            tolerance: group.tolerance ?? 0,
+            interval: group.testInterval ?? 0,
+          })),
+        serviceGroupRegions: Object.fromEntries(
+          parsed.groups
+            .filter((group) => !group.includeAll)
+            .map((group) => [
+              group.id,
+              group.members
+                .filter((m) => m.kind === "group")
+                .map((m) => {
+                  const regionGroup = parsed.groups.find(
+                    (rg) => rg.includeAll && rg.name === m.ref,
+                  );
+                  return regionGroup?.id;
+                })
+                .filter((id): id is string => !!id),
+            ]),
+        ),
       });
 
       setImportMessage(`${t.imported} ${file.name}`);
@@ -710,6 +859,8 @@ export function App() {
     }
   }
 
+  const [showGuide, setShowGuide] = useState(false);
+
   return (
     <main className="app-shell">
       <section className="hero">
@@ -718,12 +869,12 @@ export function App() {
             <img src={logoMark} alt="" className="hero-logo" />
             <div className="hero-brand-copy">
               <p className="eyebrow">{t.heroEyebrow}</p>
-              <p className="brand-support">{t.heroSupport}</p>
             </div>
           </div>
-          <label className="language-switcher">
-            <span className="language-label">{t.language}</span>
+          <div className="hero-actions">
+            <span className="hero-author">{t.author}</span>
             <select
+              className="language-select"
               value={wizard.language}
               onChange={(event) =>
                 setWizard((current) => ({
@@ -732,14 +883,54 @@ export function App() {
                 }))
               }
             >
-              <option value="zh">{t.chinese}</option>
-              <option value="en">{t.english}</option>
+              <option value="zh">中文</option>
+              <option value="en">EN</option>
             </select>
-          </label>
+          </div>
         </div>
         <h1>clash-yaml-builder</h1>
         <p className="lede">{t.heroDescription}</p>
+        <button
+          type="button"
+          className="guide-toggle-button"
+          onClick={() => setShowGuide(!showGuide)}
+        >
+          {showGuide ? t.guideCollapse : t.guideExpand}
+        </button>
       </section>
+
+      {showGuide ? (
+        <section className="guide-panel">
+          <h2>{t.guideTitle}</h2>
+          <p className="guide-intro">{t.guideIntro}</p>
+          <ol className="guide-steps">
+            <li>{t.guideStep1}</li>
+            <li>{t.guideStep2}</li>
+            <li>{t.guideStep3}</li>
+            <li>{t.guideStep4}</li>
+            <li>{t.guideStep5}</li>
+          </ol>
+          <div className="guide-example">
+            <strong>{t.guideExample}</strong>
+            <p>{t.guideExampleExplain}</p>
+          </div>
+          <h3>{t.guideConcepts}</h3>
+          <div className="guide-concepts">
+            <div className="guide-concept-card">
+              <strong>{t.guideConcept1Title}</strong>
+              <p>{t.guideConcept1}</p>
+            </div>
+            <div className="guide-concept-card">
+              <strong>{t.guideConcept2Title}</strong>
+              <p>{t.guideConcept2}</p>
+            </div>
+            <div className="guide-concept-card">
+              <strong>{t.guideConcept3Title}</strong>
+              <p>{t.guideConcept3}</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="wizard-layout">
         <aside className="panel wizard-sidebar">
@@ -777,6 +968,7 @@ export function App() {
             <section className="grid grid-wide">
               <article className="panel">
                 <h2>{t.step1}</h2>
+                <p className="step-help">{t.step1_help}</p>
                 <div className="target-grid">
                   {targetDefinitions.map((target) => {
                     const localized = target.i18n?.[wizard.language];
@@ -802,6 +994,7 @@ export function App() {
             <section className="grid">
               <article className="panel">
                 <h2>{t.step2}</h2>
+                <p className="step-help">{t.step2_help}</p>
                 <label className="field">
                   <span>{t.projectName}</span>
                   <input
@@ -876,13 +1069,151 @@ export function App() {
           ) : null}
 
           {currentStep === 2 ? (
+            <section className="grid grid-wide">
+              <article className="panel">
+                <h2>{t.step1_5}</h2>
+                <p className="step-help">{t.step1_5_help}</p>
+                <div className="stack">
+                  {wizard.subscriptions.map((sub, index) => (
+                    <div className="matrix-row matrix-row-two-col" key={sub.id}>
+                      <div className="matrix-main-grid">
+                        <label className="field compact-field">
+                          <span>{t.subscriptionName}</span>
+                          <input
+                            value={sub.name}
+                            onChange={(e) => updateSubscription(sub.id, { name: e.target.value })}
+                            placeholder={`airport${index + 1}`}
+                          />
+                        </label>
+                        <label className="field compact-field">
+                          <span>{t.subscriptionUrl}</span>
+                          <input
+                            value={sub.url}
+                            onChange={(e) => updateSubscription(sub.id, { url: e.target.value })}
+                            placeholder={t.subscriptionUrlPlaceholder}
+                          />
+                        </label>
+                      </div>
+                      <div className="matrix-actions-row">
+                        <button
+                          className="action-button action-button-ghost"
+                          type="button"
+                          onClick={() => removeSubscription(sub.id)}
+                          disabled={wizard.subscriptions.length <= 1}
+                        >
+                          {t.removeSubscription}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  className="action-button action-button-ghost"
+                  type="button"
+                  onClick={addSubscription}
+                >
+                  {t.addSubscription}
+                </button>
+                {wizard.subscriptions.every((sub) => !sub.url.trim()) ? (
+                  <p className="helper-text">{t.noSubscriptions}</p>
+                ) : null}
+              </article>
+            </section>
+          ) : null}
+
+          {currentStep === 3 ? (
+            <section className="grid grid-wide">
+              <article className="panel">
+                <h2>{t.step1_7}</h2>
+                <p className="step-help">{t.step1_7_help}</p>
+
+                <div className="section-block">
+                  <h3>{wizard.language === "zh" ? "已添加的地区节点组" : "Your Region Groups"}</h3>
+                  <div className="stack">
+                    {wizard.regionGroups.map((region) => (
+                      <div className="matrix-row" key={region.id}>
+                        <div className="matrix-main-grid" style={{ gridTemplateColumns: "1fr 2fr 120px" }}>
+                          <label className="field compact-field">
+                            <span>{t.regionName}</span>
+                            <input
+                              value={region.name}
+                              onChange={(e) => updateRegionGroup(region.id, { name: e.target.value })}
+                            />
+                          </label>
+                          <label className="field compact-field">
+                            <span>{t.regionFilter}</span>
+                            <input
+                              value={region.filter}
+                              onChange={(e) => updateRegionGroup(region.id, { filter: e.target.value })}
+                              placeholder="^(?=.*(关键字|(?i)Keyword)).*$"
+                            />
+                          </label>
+                          <label className="field compact-field">
+                            <span>{wizard.language === "zh" ? "选节点方式" : "Selection mode"}</span>
+                            <select
+                              value={region.type}
+                              onChange={(e) => updateRegionGroup(region.id, { type: e.target.value as "select" | "url-test" })}
+                            >
+                              <option value="select">{wizard.language === "zh" ? "🖐 手动选" : "🖐 Manual"}</option>
+                              <option value="url-test">{wizard.language === "zh" ? "⚡ 自动选最快" : "⚡ Auto fastest"}</option>
+                            </select>
+                          </label>
+                        </div>
+                        <div className="matrix-actions-row">
+                          <button
+                            className="action-button action-button-ghost"
+                            type="button"
+                            onClick={() => removeRegionGroup(region.id)}
+                          >
+                            {t.removeRegion}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="section-block">
+                  <h3>{t.regionBuiltIn}</h3>
+                  <p className="step-help" style={{ fontSize: "0.88rem", marginBottom: 8 }}>
+                    {wizard.language === "zh"
+                      ? "点击下面的按钮可以快速添加对应地区。已添加的会自动变灰。"
+                      : "Click a button below to add that region. Already-added ones are grayed out."}
+                  </p>
+                  <div className="action-row" style={{ flexWrap: "wrap", gap: "6px" }}>
+                    {regionPresets.map((preset) => {
+                      const already = wizard.regionGroups.some((r) => r.id === preset.id);
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          className={`action-button ${already ? "" : "action-button-ghost"}`}
+                          disabled={already}
+                          onClick={() => addRegionFromPreset(preset.id)}
+                        >
+                          {wizard.language === "zh" ? preset.nameZh : preset.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  className="action-button action-button-ghost"
+                  type="button"
+                  onClick={addCustomRegion}
+                >
+                  {t.addCustomRegion}
+                </button>
+              </article>
+            </section>
+          ) : null}
+
+          {currentStep === 4 ? (
             <section className="grid">
               <article className="panel">
                 <h2>{t.step3}</h2>
-                <div className="hint stack hint-compact">
-                  <strong>{t.tip}</strong>
-                  <span>{t.presetTip}</span>
-                </div>
+                <p className="step-help">{t.step3_help}</p>
 
                 <div className="stack">
                   <h3>{t.quickPresets}</h3>
@@ -1026,15 +1357,16 @@ export function App() {
             </section>
           ) : null}
 
-          {currentStep === 3 ? (
+          {currentStep === 5 ? (
             <section className="grid">
               <article className="panel">
                 <h2>{t.step4}</h2>
+                <p className="step-help">{t.step4_help}</p>
 
                 <div className="section-block">
                   <div className="section-heading">
                     <h3>{t.routingGroupSection}</h3>
-                    <p>{ux.customGroupAlwaysVisible}</p>
+                    <p>{t.routingGroupSectionHelp}</p>
                   </div>
                   {editableGroupTargetIds.map((targetId) => {
                     if (targetId === "group-default-proxy") {
@@ -1134,6 +1466,48 @@ export function App() {
                   >
                     {t.addCustomGroup}
                   </button>
+                </div>
+
+                <div className="section-block">
+                  <div className="section-heading">
+                    <h3>{t.regionRegionsPerGroup}</h3>
+                    <p>{t.regionRegionsPerGroupHelp}</p>
+                  </div>
+                  <div className="stack">
+                    {getAllGroupTargetIds(wizard).map((targetId) => {
+                      const groupName =
+                        targetId === "group-default-proxy" ? wizard.defaultProxyGroupName
+                          : targetId === "group-ai-services" ? wizard.aiGroupName
+                            : targetId === "group-streaming" ? wizard.streamingGroupName
+                              : targetId === "group-apple" ? wizard.appleGroupName
+                                : wizard.customGroups.find((g) => `group-custom:${g.id}` === targetId)?.name ?? targetId;
+                      const selectedRegionIds = wizard.serviceGroupRegions[targetId] ?? [];
+                      return (
+                        <div className="region-assignment-block" key={targetId}>
+                          <strong>{groupName}</strong>
+                          <div className="check-grid">
+                            {wizard.regionGroups.map((region) => (
+                              <label className="check-row" key={region.id}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRegionIds.includes(region.id)}
+                                  onChange={() => toggleServiceGroupRegion(targetId, region.id)}
+                                />
+                                <span>
+                                  {region.name}
+                                  {region.type === "url-test" ? (
+                                    <small style={{ opacity: 0.6 }}>
+                                      {wizard.language === "zh" ? "(自动)" : "(auto)"}
+                                    </small>
+                                  ) : null}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="section-block">
@@ -1399,7 +1773,7 @@ export function App() {
             </section>
           ) : null}
 
-          {currentStep === 4 ? (
+          {currentStep === 6 ? (
             <>
               <section className="grid">
                 <article className="panel">
