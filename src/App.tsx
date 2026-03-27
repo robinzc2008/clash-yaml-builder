@@ -511,11 +511,23 @@ export function App() {
 
   /* ---- 地区节点组 ---- */
 
-  function addRegionFromPreset(presetId: string) {
+  function toggleRegionPreset(presetId: string) {
     const preset = regionPresets.find((p) => p.id === presetId);
     if (!preset) return;
     setWizard((current) => {
-      if (current.regionGroups.some((r) => r.id === presetId)) return current;
+      const exists = current.regionGroups.some((r) => r.id === presetId);
+      if (exists) {
+        return {
+          ...current,
+          regionGroups: current.regionGroups.filter((r) => r.id !== presetId),
+          serviceGroupRegions: Object.fromEntries(
+            Object.entries(current.serviceGroupRegions).map(([k, v]) => [
+              k,
+              v.filter((id) => id !== presetId),
+            ]),
+          ),
+        };
+      }
       return {
         ...current,
         regionGroups: [
@@ -885,25 +897,33 @@ export function App() {
 
   const [showGuide, setShowGuide] = useState(false);
   const [regexHelperId, setRegexHelperId] = useState<string | null>(null);
-  const [regexKeywords, setRegexKeywords] = useState("");
+  const [regexInclude, setRegexInclude] = useState("");
+  const [regexExclude, setRegexExclude] = useState("");
 
-  function generateRegexFromKeywords(keywords: string): string {
-    const parts = keywords
-      .split(/[,，]/)
-      .map((k) => k.trim())
-      .filter(Boolean);
-    if (parts.length === 0) return "";
-    const escaped = parts.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    return `(?i)(${escaped.join("|")})`;
+  function buildRegex(include: string, exclude: string): string {
+    const inc = include.split(/[,，]/).map((k) => k.trim()).filter(Boolean);
+    const exc = exclude.split(/[,，]/).map((k) => k.trim()).filter(Boolean);
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    if (inc.length === 0 && exc.length === 0) return "";
+
+    const incPart = inc.length > 0 ? `(?=.*(${inc.map(esc).join("|")}))` : "";
+    const excPart = exc.length > 0 ? `(?!.*(${exc.map(esc).join("|")}))` : "";
+
+    if (inc.length > 0 && exc.length === 0) {
+      return `(?i)(${inc.map(esc).join("|")})`;
+    }
+    return `^${incPart}${excPart}`;
   }
 
   function applyRegexToRegion(regionId: string) {
-    const regex = generateRegexFromKeywords(regexKeywords);
+    const regex = buildRegex(regexInclude, regexExclude);
     if (regex) {
       updateRegionGroup(regionId, { filter: regex });
     }
     setRegexHelperId(null);
-    setRegexKeywords("");
+    setRegexInclude("");
+    setRegexExclude("");
   }
 
   return (
@@ -1215,10 +1235,12 @@ export function App() {
                               onClick={() => {
                                 if (regexHelperId === region.id) {
                                   setRegexHelperId(null);
-                                  setRegexKeywords("");
+                                  setRegexInclude("");
+                                  setRegexExclude("");
                                 } else {
                                   setRegexHelperId(region.id);
-                                  setRegexKeywords("");
+                                  setRegexInclude("");
+                                  setRegexExclude("");
                                 }
                               }}
                             >
@@ -1227,29 +1249,40 @@ export function App() {
                             {regexHelperId === region.id ? (
                               <div className="regex-helper">
                                 <span className="regex-helper-label">{t.regexHelperToggle}</span>
-                                <div className="regex-helper-row">
+                                <label className="field compact-field">
+                                  <span>{t.regexIncludeLabel}</span>
                                   <input
-                                    value={regexKeywords}
-                                    onChange={(e) => setRegexKeywords(e.target.value)}
+                                    value={regexInclude}
+                                    onChange={(e) => setRegexInclude(e.target.value)}
                                     placeholder={t.regexHelperPlaceholder}
+                                  />
+                                </label>
+                                <label className="field compact-field">
+                                  <span>{t.regexExcludeLabel}</span>
+                                  <input
+                                    value={regexExclude}
+                                    onChange={(e) => setRegexExclude(e.target.value)}
+                                    placeholder={t.regexExcludePlaceholder}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter") applyRegexToRegion(region.id);
                                     }}
                                   />
-                                  <button
-                                    type="button"
-                                    className="action-button"
-                                    onClick={() => applyRegexToRegion(region.id)}
-                                    disabled={!regexKeywords.trim()}
-                                  >
-                                    {t.regexHelperGenerate}
-                                  </button>
-                                </div>
+                                </label>
                                 <p className="regex-helper-hint">{t.regexHelperHint}</p>
-                                {regexKeywords.trim() ? (
-                                  <code className="code-inline" style={{ fontSize: "0.78rem", wordBreak: "break-all" }}>
-                                    {generateRegexFromKeywords(regexKeywords)}
-                                  </code>
+                                {(regexInclude.trim() || regexExclude.trim()) ? (
+                                  <div style={{ display: "grid", gap: "6px" }}>
+                                    <code className="code-inline" style={{ fontSize: "0.78rem", wordBreak: "break-all", padding: "6px 10px" }}>
+                                      {buildRegex(regexInclude, regexExclude)}
+                                    </code>
+                                    <button
+                                      type="button"
+                                      className="action-button"
+                                      onClick={() => applyRegexToRegion(region.id)}
+                                      style={{ justifySelf: "start" }}
+                                    >
+                                      {t.regexHelperGenerate}
+                                    </button>
+                                  </div>
                                 ) : null}
                               </div>
                             ) : null}
@@ -1294,10 +1327,9 @@ export function App() {
                           key={preset.id}
                           type="button"
                           className={`action-button ${already ? "" : "action-button-ghost"}`}
-                          disabled={already}
-                          onClick={() => addRegionFromPreset(preset.id)}
+                          onClick={() => toggleRegionPreset(preset.id)}
                         >
-                          {wizard.language === "zh" ? preset.nameZh : preset.name}
+                          {already ? "✓ " : ""}{wizard.language === "zh" ? preset.nameZh : preset.name}
                         </button>
                       );
                     })}

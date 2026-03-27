@@ -157,7 +157,10 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
     regexHelperHide: "Close helper",
     regexHelperPlaceholder: "e.g. Hong Kong, HK, 港",
     regexHelperGenerate: "Generate & Apply",
-    regexHelperHint: "Enter keywords separated by commas. The tool generates a regex that matches node names containing any of these keywords.",
+    regexHelperHint: "Include: nodes whose name matches ANY of these keywords. Exclude: nodes whose name must NOT contain any of these keywords.",
+    regexIncludeLabel: "Include keywords (match any)",
+    regexExcludeLabel: "Exclude keywords (must not contain)",
+    regexExcludePlaceholder: "e.g. IPLC, IEPL, Premium",
 
     guideTitle: "How to use this tool",
     guideIntro: "This tool generates a proxy configuration file in 5 simple steps. Here's the idea:",
@@ -336,7 +339,10 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
     regexHelperHide: "收起助手",
     regexHelperPlaceholder: "例如：香港, HK, Hong Kong",
     regexHelperGenerate: "生成并应用",
-    regexHelperHint: "用逗号分隔关键词。工具会自动生成正则表达式，匹配节点名称中包含任意关键词的节点。",
+    regexHelperHint: "包含：节点名匹配其中任一关键词即选中。排除：节点名包含其中任一关键词则排除。两者可同时使用。",
+    regexIncludeLabel: "包含关键词（匹配任一）",
+    regexExcludeLabel: "排除关键词（不能包含）",
+    regexExcludePlaceholder: "例如：IPLC, IEPL, 专线",
 
     guideTitle: "🎯 使用指南（3 分钟上手）",
     guideIntro: "这个工具帮你生成代理配置文件，只需 5 步。核心思路是：",
