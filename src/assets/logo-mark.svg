@@ -1,18 +1,90 @@
 <svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="14" y="14" width="164" height="164" rx="40" fill="url(#paint0_linear_1_2)"/>
-  <rect x="14" y="14" width="164" height="164" rx="40" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
-  <path d="M58 54L96 96L134 54" stroke="#F7FBFF" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M96 96V140" stroke="#F7FBFF" stroke-width="16" stroke-linecap="round"/>
-  <path d="M52 132C68 118 83 111 96 111C111 111 125 118 140 132" stroke="#8ED8FF" stroke-width="10" stroke-linecap="round"/>
-  <circle cx="52" cy="132" r="10" fill="#DFF6FF"/>
-  <circle cx="96" cy="111" r="9" fill="#8ED8FF"/>
-  <circle cx="140" cy="132" r="10" fill="#DFF6FF"/>
-  <rect x="123" y="119" width="18" height="18" rx="5" fill="#16355C"/>
   <defs>
-    <linearGradient id="paint0_linear_1_2" x1="32" y1="24" x2="156" y2="172" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0F2747"/>
-      <stop offset="0.52" stop-color="#1B4C87"/>
-      <stop offset="1" stop-color="#5FB3E8"/>
+    <linearGradient id="bg" x1="14" y1="14" x2="178" y2="178">
+      <stop stop-color="#080d1c"/>
+      <stop offset=".5" stop-color="#0e1628"/>
+      <stop offset="1" stop-color="#0a1020"/>
     </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#38bdf8" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#fff" stop-opacity=".95"/>
+      <stop offset=".3" stop-color="#bae6fd"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </radialGradient>
   </defs>
+
+  <!-- Background -->
+  <rect x="14" y="14" width="164" height="164" rx="40" fill="url(#bg)"/>
+  <rect x="14" y="14" width="164" height="164" rx="40" stroke="rgba(56,189,248,0.07)" stroke-width="1.5"/>
+
+  <!-- Ambient glow -->
+  <circle cx="96" cy="96" r="52" fill="url(#glow)"/>
+
+  <!-- Faint ring trace -->
+  <circle cx="96" cy="96" r="54" stroke="#38bdf8" stroke-width=".4" opacity=".07"/>
+
+  <!-- ======== Stream Ring Particles (clockwise flow, gap at upper-right) ======== -->
+
+  <!-- Dense arc: left side (180° area) — biggest, brightest -->
+  <circle cx="42" cy="96" r="4.2" fill="#38bdf8"/>
+  <circle cx="42.5" cy="109" r="4" fill="#38bdf8" opacity=".98"/>
+  <circle cx="45" cy="122" r="3.7" fill="#38bdf8" opacity=".95"/>
+  <circle cx="50" cy="134" r="3.4" fill="#38bdf8" opacity=".91"/>
+  <circle cx="58" cy="143" r="3.1" fill="#38bdf8" opacity=".86"/>
+  <circle cx="69" cy="149" r="2.8" fill="#38bdf8" opacity=".8"/>
+  <circle cx="82" cy="152" r="2.5" fill="#38bdf8" opacity=".72"/>
+  <circle cx="96" cy="151" r="2.3" fill="#38bdf8" opacity=".64"/>
+  <circle cx="109" cy="148" r="2" fill="#38bdf8" opacity=".55"/>
+  <circle cx="121" cy="142" r="1.8" fill="#38bdf8" opacity=".45"/>
+  <circle cx="132" cy="133" r="1.5" fill="#38bdf8" opacity=".36"/>
+  <circle cx="140" cy="122" r="1.3" fill="#38bdf8" opacity=".28"/>
+  <circle cx="146" cy="109" r="1.1" fill="#38bdf8" opacity=".22"/>
+
+  <!-- Dense arc: upper-left (270° area) — fading toward gap -->
+  <circle cx="42.5" cy="83" r="3.9" fill="#38bdf8" opacity=".97"/>
+  <circle cx="45" cy="70" r="3.5" fill="#38bdf8" opacity=".92"/>
+  <circle cx="50" cy="58" r="3.2" fill="#38bdf8" opacity=".86"/>
+  <circle cx="58" cy="49" r="2.9" fill="#38bdf8" opacity=".78"/>
+  <circle cx="69" cy="43" r="2.6" fill="#38bdf8" opacity=".68"/>
+  <circle cx="82" cy="40" r="2.3" fill="#38bdf8" opacity=".58"/>
+  <circle cx="96" cy="41" r="2" fill="#38bdf8" opacity=".46"/>
+  <circle cx="109" cy="44" r="1.7" fill="#38bdf8" opacity=".34"/>
+  <circle cx="121" cy="50" r="1.4" fill="#38bdf8" opacity=".24"/>
+
+  <!-- Filler particles between main dots for smoothness -->
+  <circle cx="43" cy="102" r="1.6" fill="#38bdf8" opacity=".7"/>
+  <circle cx="43" cy="89" r="1.6" fill="#38bdf8" opacity=".7"/>
+  <circle cx="44" cy="76" r="1.4" fill="#38bdf8" opacity=".65"/>
+  <circle cx="47" cy="64" r="1.3" fill="#38bdf8" opacity=".6"/>
+  <circle cx="53" cy="53" r="1.2" fill="#38bdf8" opacity=".55"/>
+  <circle cx="63" cy="45" r="1.1" fill="#38bdf8" opacity=".48"/>
+  <circle cx="75" cy="41" r="1" fill="#38bdf8" opacity=".4"/>
+  <circle cx="44" cy="116" r="1.5" fill="#38bdf8" opacity=".68"/>
+  <circle cx="47" cy="128" r="1.4" fill="#38bdf8" opacity=".64"/>
+  <circle cx="53" cy="139" r="1.3" fill="#38bdf8" opacity=".58"/>
+  <circle cx="63" cy="147" r="1.2" fill="#38bdf8" opacity=".52"/>
+  <circle cx="75" cy="151" r="1.1" fill="#38bdf8" opacity=".46"/>
+  <circle cx="103" cy="150" r="1" fill="#38bdf8" opacity=".38"/>
+  <circle cx="115" cy="145" r=".9" fill="#38bdf8" opacity=".3"/>
+  <circle cx="127" cy="138" r=".8" fill="#38bdf8" opacity=".24"/>
+  <circle cx="136" cy="128" r=".7" fill="#38bdf8" opacity=".2"/>
+
+  <!-- Incoming particles (outside ring, in gap area) -->
+  <circle cx="148" cy="72" r="1" fill="#38bdf8" opacity=".14"/>
+  <circle cx="154" cy="82" r=".9" fill="#38bdf8" opacity=".11"/>
+  <circle cx="152" cy="62" r=".7" fill="#38bdf8" opacity=".08"/>
+  <circle cx="138" cy="56" r=".8" fill="#38bdf8" opacity=".1"/>
+
+  <!-- Inner spiral particles (flowing from ring toward center) -->
+  <circle cx="58" cy="98" r="2" fill="#38bdf8" opacity=".38"/>
+  <circle cx="67" cy="94" r="1.7" fill="#38bdf8" opacity=".32"/>
+  <circle cx="76" cy="92" r="1.4" fill="#38bdf8" opacity=".26"/>
+  <circle cx="84" cy="94" r="1.1" fill="#38bdf8" opacity=".2"/>
+
+  <!-- Center core -->
+  <circle cx="96" cy="96" r="11" fill="url(#core)"/>
+  <circle cx="96" cy="96" r="5.5" fill="#fff" opacity=".45"/>
 </svg>
