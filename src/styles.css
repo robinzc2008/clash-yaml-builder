@@ -188,18 +188,30 @@ a:hover {
 
 .language-select {
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-pill);
-  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
   font: inherit;
-  font-size: 0.86rem;
-  background: var(--bg-input);
-  color: var(--text-primary);
+  font-size: 0.84rem;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, color 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2394a3b8'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
 }
 
 .language-select:hover {
   border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+
+.language-select option {
+  background: var(--bg-surface-solid);
+  color: var(--text-primary);
 }
 
 .hero h1 {
@@ -1229,30 +1241,56 @@ a:hover {
 }
 
 /* ============================================
+   Region Group Cards
+   ============================================ */
+
+.region-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.2s;
+}
+
+.region-card:hover {
+  border-color: var(--border-accent);
+}
+
+.region-card-grid {
+  display: grid;
+  grid-template-columns: 160px 1fr 140px;
+  gap: 12px;
+  align-items: start;
+}
+
+.region-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ============================================
    Regex Helper (inline keyword tool)
    ============================================ */
 
 .regex-helper {
   display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 14px;
   border-radius: var(--radius-sm);
   background: var(--accent-secondary-dim);
   border: 1px solid rgba(167, 139, 250, 0.2);
 }
 
-.regex-helper-label {
-  font-size: 0.82rem;
-  color: var(--accent-secondary);
-  font-weight: 500;
-}
-
-.regex-helper-row {
+.regex-helper-grid {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: end;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .regex-helper-hint {
@@ -1260,6 +1298,21 @@ a:hover {
   color: var(--text-dim);
   margin: 0;
   line-height: 1.4;
+}
+
+.regex-helper-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.regex-helper-preview .code-inline {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+  word-break: break-all;
+  padding: 6px 10px;
 }
 
 .regex-helper-toggle {
@@ -1298,6 +1351,14 @@ a:hover {
   .matrix-main-grid,
   .matrix-actions-row,
   .matrix-row-sortable {
+    grid-template-columns: 1fr;
+  }
+
+  .region-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .regex-helper-grid {
     grid-template-columns: 1fr;
   }
 

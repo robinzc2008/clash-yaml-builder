@@ -1213,8 +1213,8 @@ export function App() {
                   <h3>{wizard.language === "zh" ? "已添加的地区节点组" : "Your Region Groups"}</h3>
                   <div className="stack">
                     {wizard.regionGroups.map((region) => (
-                      <div className="matrix-row" key={region.id}>
-                        <div className="matrix-main-grid" style={{ gridTemplateColumns: "1fr 2fr 120px" }}>
+                      <div className="region-card" key={region.id}>
+                        <div className="region-card-grid">
                           <label className="field compact-field">
                             <span>{t.regionName}</span>
                             <input
@@ -1229,63 +1229,6 @@ export function App() {
                               onChange={(e) => updateRegionGroup(region.id, { filter: e.target.value })}
                               placeholder="(?i)(香港|HK|Hong Kong)"
                             />
-                            <button
-                              type="button"
-                              className="regex-helper-toggle"
-                              onClick={() => {
-                                if (regexHelperId === region.id) {
-                                  setRegexHelperId(null);
-                                  setRegexInclude("");
-                                  setRegexExclude("");
-                                } else {
-                                  setRegexHelperId(region.id);
-                                  setRegexInclude("");
-                                  setRegexExclude("");
-                                }
-                              }}
-                            >
-                              {regexHelperId === region.id ? t.regexHelperHide : t.regexHelperToggle}
-                            </button>
-                            {regexHelperId === region.id ? (
-                              <div className="regex-helper">
-                                <span className="regex-helper-label">{t.regexHelperToggle}</span>
-                                <label className="field compact-field">
-                                  <span>{t.regexIncludeLabel}</span>
-                                  <input
-                                    value={regexInclude}
-                                    onChange={(e) => setRegexInclude(e.target.value)}
-                                    placeholder={t.regexHelperPlaceholder}
-                                  />
-                                </label>
-                                <label className="field compact-field">
-                                  <span>{t.regexExcludeLabel}</span>
-                                  <input
-                                    value={regexExclude}
-                                    onChange={(e) => setRegexExclude(e.target.value)}
-                                    placeholder={t.regexExcludePlaceholder}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") applyRegexToRegion(region.id);
-                                    }}
-                                  />
-                                </label>
-                                <p className="regex-helper-hint">{t.regexHelperHint}</p>
-                                {(regexInclude.trim() || regexExclude.trim()) ? (
-                                  <div style={{ display: "grid", gap: "6px" }}>
-                                    <code className="code-inline" style={{ fontSize: "0.78rem", wordBreak: "break-all", padding: "6px 10px" }}>
-                                      {buildRegex(regexInclude, regexExclude)}
-                                    </code>
-                                    <button
-                                      type="button"
-                                      className="action-button"
-                                      onClick={() => applyRegexToRegion(region.id)}
-                                      style={{ justifySelf: "start" }}
-                                    >
-                                      {t.regexHelperGenerate}
-                                    </button>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : null}
                           </label>
                           <label className="field compact-field">
                             <span>{wizard.language === "zh" ? "选节点方式" : "Selection mode"}</span>
@@ -1298,7 +1241,24 @@ export function App() {
                             </select>
                           </label>
                         </div>
-                        <div className="matrix-actions-row">
+                        <div className="region-card-footer">
+                          <button
+                            type="button"
+                            className="regex-helper-toggle"
+                            onClick={() => {
+                              if (regexHelperId === region.id) {
+                                setRegexHelperId(null);
+                                setRegexInclude("");
+                                setRegexExclude("");
+                              } else {
+                                setRegexHelperId(region.id);
+                                setRegexInclude("");
+                                setRegexExclude("");
+                              }
+                            }}
+                          >
+                            {regexHelperId === region.id ? t.regexHelperHide : t.regexHelperToggle}
+                          </button>
                           <button
                             className="action-button action-button-ghost"
                             type="button"
@@ -1307,6 +1267,44 @@ export function App() {
                             {t.removeRegion}
                           </button>
                         </div>
+                        {regexHelperId === region.id ? (
+                          <div className="regex-helper">
+                            <div className="regex-helper-grid">
+                              <label className="field compact-field">
+                                <span>{t.regexIncludeLabel}</span>
+                                <input
+                                  value={regexInclude}
+                                  onChange={(e) => setRegexInclude(e.target.value)}
+                                  placeholder={t.regexHelperPlaceholder}
+                                />
+                              </label>
+                              <label className="field compact-field">
+                                <span>{t.regexExcludeLabel}</span>
+                                <input
+                                  value={regexExclude}
+                                  onChange={(e) => setRegexExclude(e.target.value)}
+                                  placeholder={t.regexExcludePlaceholder}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") applyRegexToRegion(region.id);
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <p className="regex-helper-hint">{t.regexHelperHint}</p>
+                            {(regexInclude.trim() || regexExclude.trim()) ? (
+                              <div className="regex-helper-preview">
+                                <code className="code-inline">{buildRegex(regexInclude, regexExclude)}</code>
+                                <button
+                                  type="button"
+                                  className="action-button"
+                                  onClick={() => applyRegexToRegion(region.id)}
+                                >
+                                  {t.regexHelperGenerate}
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
