@@ -1,4 +1,4 @@
-import type { AppLanguage, GeoDataSourceId, TargetPlatform } from "../../core/model/types";
+import type { AppLanguage, TargetPlatform } from "../../core/model/types";
 
 export type { AppLanguage };
 
@@ -73,8 +73,4 @@ export interface WizardState {
   regionGroups: WizardRegionGroup[];
   /** 每个服务策略组引用哪些地区组 ID（key = groupTargetId） */
   serviceGroupRegions: Record<string, string[]>;
-  /** 启用 geodata-mode（geoip.dat + geosite.dat 自动更新） */
-  enableGeoDataMode: boolean;
-  /** geo 数据源 */
-  geoDataSource: GeoDataSourceId;
 }

@@ -162,16 +162,6 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
     regexExcludeLabel: "Exclude keywords (must not contain)",
     regexExcludePlaceholder: "e.g. IPLC, IEPL, Premium",
 
-    geoDataSource: "GeoData source",
-    geoDataSourceHelp: "Choose where to download geoip.dat and geosite.dat. These files are the backbone for country/service routing rules. The proxy client auto-updates them every 24 hours.",
-    geoDataEnabled: "Enable geodata-mode",
-    geoDataEnabledHelp: "When enabled, the output YAML includes geodata-mode config so your proxy client auto-downloads and updates geoip.dat / geosite.dat — providing the most comprehensive IP and domain data.",
-    geoDataLoyalsoldier: "Loyalsoldier (recommended)",
-    geoDataLoyalsoldierHelp: "Merges IPIP.net and MaxMind data for more accurate China IP coverage. Well-maintained community project.",
-    geoDataMetaCubeX: "MetaCubeX",
-    geoDataMetaCubeXHelp: "Official MetaCubeX release, tightly integrated with Mihomo.",
-    geoDataSyncCount: "geosite: {geosite} rules, geoip: {geoip} rules",
-
     guideTitle: "How to use this tool",
     guideIntro: "This tool generates a proxy configuration file in 5 simple steps. Here's the idea:",
     guideStep1: "Pick your device — router (OpenClash), Windows (Mihomo), or Mac (Sparkle).",
@@ -353,16 +343,6 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
     regexIncludeLabel: "包含关键词（匹配任一）",
     regexExcludeLabel: "排除关键词（不能包含）",
     regexExcludePlaceholder: "例如：IPLC, IEPL, 专线",
-
-    geoDataSource: "GeoData 数据源",
-    geoDataSourceHelp: "选择从哪里下载 geoip.dat 和 geosite.dat 文件。这两个文件是国家/服务路由规则的基础。代理客户端会每 24 小时自动更新。",
-    geoDataEnabled: "启用 geodata-mode",
-    geoDataEnabledHelp: "开启后，输出的 YAML 会包含 geodata-mode 配置，代理客户端会自动下载并更新 geoip.dat / geosite.dat — 提供最全面的 IP 和域名数据。",
-    geoDataLoyalsoldier: "Loyalsoldier（推荐）",
-    geoDataLoyalsoldierHelp: "融合 IPIP.net 和 MaxMind 数据，中国 IP 覆盖更精准。社区维护良好。",
-    geoDataMetaCubeX: "MetaCubeX",
-    geoDataMetaCubeXHelp: "MetaCubeX 官方发布，与 Mihomo 深度集成。",
-    geoDataSyncCount: "geosite: {geosite} 条规则, geoip: {geoip} 条规则",
 
     guideTitle: "🎯 使用指南（3 分钟上手）",
     guideIntro: "这个工具帮你生成代理配置文件，只需 5 步。核心思路是：",

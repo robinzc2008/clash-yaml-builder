@@ -1,6 +1,5 @@
 import type { BuilderProject, RenderedConfig } from "../model/types";
 import {
-  buildGeoDataBlock,
   renderProxyGroup,
   renderProxyProvider,
   renderRuleProvider,
@@ -31,17 +30,11 @@ export function renderSparkle(project: BuilderProject): RenderedConfig {
     .filter((rule) => rule.enabled)
     .map((rule) => renderRule(rule));
 
-  const geoBlock = buildGeoDataBlock(
-    project.settings.enableGeoDataMode,
-    project.settings.geoDataSource,
-  );
-
   return {
     target: "sparkle",
     format: "yaml",
     warnings: ["Sparkle output is a starter adapter and may need target-specific tuning."],
     content: stringifyYaml({
-      ...geoBlock,
       proxyProviders,
       groups,
       ruleProviders,

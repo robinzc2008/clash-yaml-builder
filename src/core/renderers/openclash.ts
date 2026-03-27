@@ -1,6 +1,5 @@
 import type { BuilderProject, RenderedConfig } from "../model/types";
 import {
-  buildGeoDataBlock,
   renderProxyGroup,
   renderProxyProvider,
   renderRuleProvider,
@@ -31,13 +30,7 @@ export function renderOpenClash(project: BuilderProject): RenderedConfig {
     .filter((rule) => rule.enabled)
     .map((rule) => renderRule(rule));
 
-  const geoBlock = buildGeoDataBlock(
-    project.settings.enableGeoDataMode,
-    project.settings.geoDataSource,
-  );
-
   const output: Record<string, unknown> = {
-    ...geoBlock,
     "proxy-providers": proxyProviders,
     proxies: [{ name: "直连", type: "direct" }],
     "proxy-groups": proxyGroups,

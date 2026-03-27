@@ -22,8 +22,6 @@ export const builderProjectSchema = z.object({
     ]),
     enableLanDirect: z.boolean(),
     enableAdBlock: z.boolean(),
-    enableGeoDataMode: z.boolean().optional().default(true),
-    geoDataSource: z.enum(["loyalsoldier", "metacubex"]).optional().default("loyalsoldier"),
   }),
   groups: z.array(
     z.object({
@@ -94,7 +92,6 @@ export const builderProjectSchema = z.object({
           "process_name_regex",
           "rule_set",
           "geoip",
-          "geosite",
           "match",
         ]),
         value: z.string().optional(),
