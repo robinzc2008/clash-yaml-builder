@@ -1427,4 +1427,23 @@ a:hover {
   .mode-buttons {
     grid-template-columns: 1fr;
   }
+
+  .geodata-controls {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ============================================
+   GeoData Source Block
+   ============================================ */
+
+.geodata-block {
+  border-color: var(--border-accent);
+}
+
+.geodata-controls {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 12px;
+  align-items: start;
 }

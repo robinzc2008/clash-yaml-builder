@@ -882,6 +882,8 @@ export function App() {
                 .filter((id): id is string => !!id),
             ]),
         ),
+        enableGeoDataMode: parsed.settings.enableGeoDataMode ?? true,
+        geoDataSource: parsed.settings.geoDataSource ?? "loyalsoldier",
       });
 
       setImportMessage(`${t.imported} ${file.name}`);
@@ -1354,6 +1356,46 @@ export function App() {
                 <h2>{t.step3}</h2>
                 <p className="step-help">{t.step3_help}</p>
 
+                <div className="section-block geodata-block">
+                  <h3>{t.geoDataSource}</h3>
+                  <p className="step-help" style={{ fontSize: "0.88rem", marginBottom: 10 }}>
+                    {t.geoDataSourceHelp}
+                  </p>
+                  <div className="geodata-controls">
+                    <label className="field compact-field">
+                      <span>{t.geoDataSource}</span>
+                      <select
+                        value={wizard.geoDataSource}
+                        onChange={(e) =>
+                          setWizard((prev) => ({
+                            ...prev,
+                            geoDataSource: e.target.value as "loyalsoldier" | "metacubex",
+                          }))
+                        }
+                      >
+                        <option value="loyalsoldier">{t.geoDataLoyalsoldier}</option>
+                        <option value="metacubex">{t.geoDataMetaCubeX}</option>
+                      </select>
+                    </label>
+                    <label className="check-row" style={{ marginTop: 6 }}>
+                      <input
+                        type="checkbox"
+                        checked={wizard.enableGeoDataMode}
+                        onChange={(e) =>
+                          setWizard((prev) => ({ ...prev, enableGeoDataMode: e.target.checked }))
+                        }
+                      />
+                      <span>
+                        <strong>{t.geoDataEnabled}</strong>
+                        <small>{t.geoDataEnabledHelp}</small>
+                      </span>
+                    </label>
+                  </div>
+                  <p className="helper-text" style={{ marginTop: 6, fontSize: "0.78rem" }}>
+                    {wizard.geoDataSource === "loyalsoldier" ? t.geoDataLoyalsoldierHelp : t.geoDataMetaCubeXHelp}
+                  </p>
+                </div>
+
                 <div className="stack">
                   <h3>{t.quickPresets}</h3>
                   {groupedPresets.map(([category, presets]) => (
@@ -1404,6 +1446,10 @@ export function App() {
                   {remoteStatus === "ready" && lastSyncedAt ? (
                     <p className="helper-text">
                       {t.lastSyncedAt}: {formatSyncTime(lastSyncedAt, wizard.language)}
+                      {" · "}
+                      {t.geoDataSyncCount
+                        .replace("{geosite}", String(remoteCatalog.filter((i) => i.kind === "geosite").length))
+                        .replace("{geoip}", String(remoteCatalog.filter((i) => i.kind === "geoip").length))}
                     </p>
                   ) : null}
                   {remoteStatus === "error" ? (

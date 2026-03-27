@@ -2,6 +2,8 @@ export type AppLanguage = "en" | "zh";
 
 export type TargetPlatform = "openclash" | "windows-mihomo" | "sparkle";
 
+export type GeoDataSourceId = "loyalsoldier" | "metacubex";
+
 export type MatchKind =
   | "domain"
   | "domain_suffix"
@@ -12,6 +14,7 @@ export type MatchKind =
   | "process_name_regex"
   | "rule_set"
   | "geoip"
+  | "geosite"
   | "match";
 
 export type BuiltinPolicy = "DIRECT" | "REJECT";
@@ -118,6 +121,10 @@ export interface BuilderProject {
     finalPolicy: PolicyRef;
     enableLanDirect: boolean;
     enableAdBlock: boolean;
+    /** 启用 geodata-mode（使用 .dat 文件代替逐个 yaml rule-provider） */
+    enableGeoDataMode: boolean;
+    /** 选择的 geo 数据源（影响 geox-url 下载地址） */
+    geoDataSource: GeoDataSourceId;
   };
   groups: GroupSpec[];
   proxyProviders: ProxyProviderSpec[];

@@ -272,6 +272,8 @@ export function createProjectFromWizard(state: WizardState): BuilderProject {
       finalPolicy: buildFinalPolicy(state),
       enableLanDirect: state.enableLanDirect,
       enableAdBlock: state.selectedPresetIds.includes("preset-adblock"),
+      enableGeoDataMode: state.enableGeoDataMode,
+      geoDataSource: state.geoDataSource,
     },
     groups: [...buildServiceGroups(state), ...buildRegionGroups(state)],
     proxyProviders: buildProxyProviders(state),

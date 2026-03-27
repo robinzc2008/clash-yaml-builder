@@ -1,6 +1,7 @@
 import YAML from "yaml";
 import type {
   BuilderProject,
+  GeoDataSourceId,
   GroupMember,
   GroupSpec,
   PolicyRef,
@@ -8,6 +9,7 @@ import type {
   RuleProviderSpec,
   RuleSpec,
 } from "../model/types";
+import { buildGeoxUrlConfig } from "../sources/loyalsoldierSource";
 
 export function resolvePolicy(policy: PolicyRef): string {
   return policy.kind === "builtin" ? policy.value : policy.value;
@@ -124,9 +126,33 @@ export function renderRule(rule: RuleSpec): string {
       return `RULE-SET,${rule.match.value},${target}`;
     case "geoip":
       return `GEOIP,${rule.match.value},${target}`;
+    case "geosite":
+      return `GEOSITE,${rule.match.value},${target}`;
     case "match":
       return `MATCH,${target}`;
   }
+}
+
+/**
+ * 构建 geodata-mode 相关顶级配置段。
+ * 启用后 Clash/Mihomo 客户端会自动下载并定期更新 geoip.dat / geosite.dat。
+ */
+export function buildGeoDataBlock(
+  enabled: boolean,
+  sourceId: GeoDataSourceId,
+): Record<string, unknown> {
+  if (!enabled) return {};
+  const urls = buildGeoxUrlConfig(sourceId);
+  return {
+    "geodata-mode": true,
+    "geo-auto-update": true,
+    "geo-update-interval": 24,
+    "geox-url": {
+      geoip: urls.geoip,
+      geosite: urls.geosite,
+      mmdb: urls.mmdb,
+    },
+  };
 }
 
 export function stringifyYaml(value: unknown): string {
