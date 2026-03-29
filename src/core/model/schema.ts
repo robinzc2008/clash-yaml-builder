@@ -4,7 +4,7 @@ export const builderProjectSchema = z.object({
   version: z.literal(1),
   meta: z.object({
     name: z.string(),
-    target: z.enum(["openclash", "windows-mihomo", "sparkle"]),
+    target: z.enum(["windows-mihomo", "sparkle"]),
     mode: z.enum(["simple", "advanced"]),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -23,6 +23,16 @@ export const builderProjectSchema = z.object({
     enableLanDirect: z.boolean(),
     enableAdBlock: z.boolean(),
   }),
+  proxies: z
+    .array(
+      z
+        .object({
+          name: z.string(),
+          type: z.string(),
+        })
+        .catchall(z.unknown()),
+    )
+    .optional(),
   groups: z.array(
     z.object({
       id: z.string(),

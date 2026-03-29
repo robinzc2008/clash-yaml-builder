@@ -1,4 +1,4 @@
-import type { BuilderProject, RenderedConfig } from "../model/types";
+import type { BuilderProject, RenderedConfig, TargetPlatform } from "../model/types";
 import {
   renderProxyGroup,
   renderProxyProvider,
@@ -7,7 +7,14 @@ import {
   stringifyYaml,
 } from "./shared";
 
-export function renderOpenClash(project: BuilderProject): RenderedConfig {
+/**
+ * Clash Meta / Mihomo 系通用配置：支持 HTTP 拉取 Base64 订阅、proxies 中 type: direct（直连）、
+ * 无强制 path。当前主要用于 Sparkle 这条 Mihomo 风格导出链路。
+ */
+export function renderClashMetaStyle(
+  project: BuilderProject,
+  target: TargetPlatform,
+): RenderedConfig {
   const groupOpts = { directMemberLabel: "直连" as const };
   const proxyGroups = project.groups.map((group) =>
     renderProxyGroup(group, project, groupOpts),
@@ -40,7 +47,7 @@ export function renderOpenClash(project: BuilderProject): RenderedConfig {
   };
 
   return {
-    target: "openclash",
+    target,
     format: "yaml",
     warnings: [],
     content: stringifyYaml(output),

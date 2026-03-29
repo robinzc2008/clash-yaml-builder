@@ -1,4 +1,5 @@
-import type { AppLanguage, GroupSpec, RuleProviderSpec, RuleSpec } from "../model/types";
+import type { AppLanguage, GroupSpec, RuleProviderSpec, RuleSpec, TargetPlatform } from "../model/types";
+import { ALL_WIZARD_TARGETS } from "../model/types";
 import {
   META_RULES_DAT_REPO,
   metaRulesDatCatalog,
@@ -17,7 +18,7 @@ export interface PresetPack {
     | "security";
   style?: "bundle" | "service";
   description: string;
-  supportedTargets: Array<"openclash" | "windows-mihomo" | "sparkle">;
+  supportedTargets: TargetPlatform[];
   groups: GroupSpec[];
   ruleProviders: RuleProviderSpec[];
   rules: RuleSpec[];
@@ -33,7 +34,7 @@ export const presetPacks: PresetPack[] = [
     category: "foundation",
     style: "bundle",
     description: "Routes China mainland domains directly via MetaCubeX geosite:cn rule-set.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX geosite:cn",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [],
@@ -81,7 +82,7 @@ export const presetPacks: PresetPack[] = [
     category: "ai",
     style: "bundle",
     description: "Routes mainstream AI services through a dedicated policy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [
@@ -130,7 +131,7 @@ export const presetPacks: PresetPack[] = [
     category: "ai",
     style: "service",
     description: "Routes OpenAI domains through a dedicated AI policy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [
@@ -179,7 +180,7 @@ export const presetPacks: PresetPack[] = [
     category: "ai",
     style: "service",
     description: "Routes Claude and Anthropic domains through the AI policy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     groups: [
       {
         id: "group-ai-services",
@@ -223,7 +224,7 @@ export const presetPacks: PresetPack[] = [
     category: "ai",
     style: "service",
     description: "Routes Gemini domains through the AI policy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     groups: [
       {
         id: "group-ai-services",
@@ -271,7 +272,7 @@ export const presetPacks: PresetPack[] = [
     category: "work",
     style: "service",
     description: "Routes GitHub domains through the default proxy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [],
@@ -310,7 +311,7 @@ export const presetPacks: PresetPack[] = [
     category: "work",
     style: "service",
     description: "Routes Google search and service domains through the default proxy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [],
@@ -349,7 +350,7 @@ export const presetPacks: PresetPack[] = [
     category: "streaming",
     style: "bundle",
     description: "Creates a dedicated group for mainstream streaming services.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [
@@ -416,7 +417,7 @@ export const presetPacks: PresetPack[] = [
     category: "streaming",
     style: "service",
     description: "Routes Netflix domains through the streaming policy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [
@@ -465,7 +466,7 @@ export const presetPacks: PresetPack[] = [
     category: "streaming",
     style: "service",
     description: "Routes YouTube domains through the streaming policy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [
@@ -514,7 +515,7 @@ export const presetPacks: PresetPack[] = [
     category: "communication",
     style: "service",
     description: "Routes Telegram domains through the default proxy group.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [],
@@ -554,7 +555,7 @@ export const presetPacks: PresetPack[] = [
     style: "service",
     description:
       "Adds an Apple-focused ruleset for clients that need Apple services split out separately.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     sourceLabel: "MetaCubeX meta-rules-dat",
     sourceUrl: META_RULES_DAT_REPO,
     groups: [
@@ -603,7 +604,7 @@ export const presetPacks: PresetPack[] = [
     category: "security",
     style: "bundle",
     description: "Adds a simple reject ruleset for ad domains.",
-    supportedTargets: ["openclash", "windows-mihomo", "sparkle"],
+    supportedTargets: [...ALL_WIZARD_TARGETS],
     groups: [],
     ruleProviders: [
       {

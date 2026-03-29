@@ -51,6 +51,7 @@ const state: WizardState = {
   aiGroupName: "🤖 AI",
   streamingGroupName: "📹 流媒体",
   appleGroupName: "🍎 Apple",
+  removedPresetGroupIds: [],
   customGroups: [],
   finalPolicyMode: "default-proxy",
   enableLanDirect: true,

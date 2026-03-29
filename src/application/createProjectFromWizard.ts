@@ -6,6 +6,7 @@ import type {
   RuleProviderSpec,
   RuleSpec,
 } from "../core/model/types";
+import { platformCapabilities } from "../core/capabilities/platformCapabilities";
 import { presetPacks } from "../core/presets/presetPacks";
 import { buildRemoteRuleProviderFromId } from "../core/sources/metaRulesDat";
 import {
@@ -40,6 +41,8 @@ function buildRegionGroups(state: WizardState): GroupSpec[] {
         type: region.type,
         members: [],
         includeAll: true,
+        testUrl:
+          region.type === "url-test" ? "https://www.gstatic.com/generate_204" : undefined,
       };
     }
 
@@ -52,6 +55,8 @@ function buildRegionGroups(state: WizardState): GroupSpec[] {
       filter: region.filter,
       tolerance: region.tolerance > 0 ? region.tolerance : undefined,
       testInterval: region.interval > 0 ? region.interval : undefined,
+      testUrl:
+        region.type === "url-test" ? "https://www.gstatic.com/generate_204" : undefined,
     };
   });
 }
@@ -100,6 +105,7 @@ function buildServiceGroups(state: WizardState): GroupSpec[] {
 /* ------------------------------------------------------------------ */
 
 function buildProxyProviders(state: WizardState): ProxyProviderSpec[] {
+  const fetchProxy = state.target === "sparkle" ? "直连" : "DIRECT";
   const providers: ProxyProviderSpec[] = [];
 
   for (const sub of state.subscriptions) {
@@ -114,7 +120,7 @@ function buildProxyProviders(state: WizardState): ProxyProviderSpec[] {
         url: "https://www.gstatic.com/generate_204",
         interval: 300,
       },
-      fetchProxy: "直连",
+      fetchProxy,
     });
   }
 
@@ -130,7 +136,7 @@ function buildProxyProviders(state: WizardState): ProxyProviderSpec[] {
         url: "https://www.gstatic.com/generate_204",
         interval: 300,
       },
-      fetchProxy: "直连",
+      fetchProxy,
     });
   }
 
@@ -243,13 +249,14 @@ function buildRemoteRules(state: WizardState): RuleSpec[] {
 
 export function createProjectFromWizard(state: WizardState): BuilderProject {
   const now = new Date().toISOString();
+  const supportsProcessRules = platformCapabilities[state.target].supports.processRule;
 
   const rules = mergeUniqueById<RuleSpec>([
     ...(state.enableLanDirect ? [buildLanRule(state.lanCidr)] : []),
     ...buildPresetRules(state.selectedPresetIds, state),
     ...buildRemoteRules(state),
     ...buildCustomDomainRules(state),
-    ...(state.target === "windows-mihomo" ? buildProcessRules(state) : []),
+    ...(supportsProcessRules ? buildProcessRules(state) : []),
     {
       id: "rule-final-match",
       match: { kind: "match" },

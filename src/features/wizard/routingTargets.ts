@@ -17,6 +17,7 @@ export const namedGroupTargetIds = [
 
 export type NamedGroupTargetId = (typeof namedGroupTargetIds)[number];
 export type WizardGroupTargetId = NamedGroupTargetId | `group-custom:${string}`;
+export type RemovablePresetGroupTargetId = Exclude<NamedGroupTargetId, "group-default-proxy">;
 
 export function isGroupTargetId(value: WizardPolicyTargetId): value is WizardGroupTargetId {
   return value.startsWith("group-");
@@ -28,7 +29,12 @@ export function getCustomGroupIdFromTarget(targetId: WizardGroupTargetId) {
 
 export function getAllGroupTargetIds(state: WizardState): WizardGroupTargetId[] {
   return [
-    ...namedGroupTargetIds,
+    "group-default-proxy",
+    ...namedGroupTargetIds.filter(
+      (targetId): targetId is RemovablePresetGroupTargetId =>
+        targetId !== "group-default-proxy" &&
+        !state.removedPresetGroupIds.includes(targetId),
+    ),
     ...state.customGroups.map((group) => `group-custom:${group.id}` as const),
   ];
 }
@@ -174,15 +180,13 @@ export function getPolicyTargetLabel(
 }
 
 export function getPolicyTargetOptions(state: WizardState, language: AppLanguage) {
+  const groupOptions = getAllGroupTargetIds(state).map((targetId) => ({
+    id: targetId,
+    label: getGroupNameByTarget(targetId, state),
+  }));
+
   return [
-    { id: "group-default-proxy" as const, label: state.defaultProxyGroupName },
-    { id: "group-ai-services" as const, label: state.aiGroupName },
-    { id: "group-streaming" as const, label: state.streamingGroupName },
-    { id: "group-apple" as const, label: state.appleGroupName },
-    ...state.customGroups.map((group) => ({
-      id: `group-custom:${group.id}` as const,
-      label: group.name,
-    })),
+    ...groupOptions,
     {
       id: "builtin:DIRECT" as const,
       label: language === "zh" ? "直连 DIRECT" : "DIRECT",

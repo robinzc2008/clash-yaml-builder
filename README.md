@@ -17,7 +17,7 @@ This tool takes your intent — "which apps should go through which region's pro
 ### Features
 
 - **Step-by-step wizard** — 5–7 guided steps from device selection to YAML export
-- **Multi-platform support** — OpenClash (router), Mihomo (Windows), Sparkle (Windows / macOS / Linux)
+- **Multi-platform support** — OpenClash (router), Mihomo, Sparkle, Clash Verge Rev (Meta YAML dialect); Clash for Windows **classic kernel** (separate dialect: `path` on providers, `DIRECT`, subscription must be Clash YAML)
 - **Subscription management** — paste your proxy subscription URLs, they're embedded directly in the output
 - **Region node groups** — organize nodes by country/area (Hong Kong, Japan, USA…) with customizable regex filters
 - **Regex helper** — generate regex patterns from plain keywords, supports include + exclude logic
@@ -80,6 +80,7 @@ src/
 
 ### Changelog
 
+- **v0.2.3** — Wizard targets: **Clash Verge Rev** (`clash-verge`) and **CFW classic** (`cfw-classic`). Shared **Meta-style** renderer for OpenClash / Mihomo / Sparkle / Verge; classic CFW uses `DIRECT`, required `path` on proxy-providers, and export warnings about Base64 subscriptions.
 - **v0.2.2** — Sparkle export uses standard Mihomo/Clash YAML keys (`proxy-groups`, `proxy-providers`, etc.); strategy groups list **直连** alongside the injected direct proxy for consistency with subscription fetch. Added `scripts/generate-sparkle-sample.ts` and `docs/` overview HTML.
 - **v0.2.1** — Fixed MetaCubeX full rule catalog sync returning no rules (GitHub truncates huge recursive trees at repo root; the app now requests the `geo/` subtree so geosite/geoip YAML entries appear in search again). Version bump for Windows desktop builds.
 - **Earlier versions** — See [GitHub Releases](https://github.com/robinzc2008/clash-yaml-builder/releases).
@@ -107,7 +108,7 @@ MIT
 ### 核心功能
 
 - **向导式操作** — 5–7 步引导，从选设备到导出 YAML
-- **多平台支持** — OpenClash（路由器）、Mihomo（Windows）、Sparkle（Windows / macOS / Linux）
+- **多平台支持** — OpenClash（路由器）、Mihomo、Sparkle、Clash Verge Rev（共用 Meta 系 YAML）；Clash for Windows **仅经典内核**单独方言（`path`、`DIRECT`，订阅须为 Clash YAML）
 - **订阅管理** — 粘贴机场订阅链接，自动写入最终配置
 - **地区节点组** — 按国家/地区整理节点（香港、日本、美国…），支持自定义正则过滤
 - **正则助手** — 用关键词自动生成正则表达式，支持「包含 + 排除」逻辑
@@ -170,6 +171,7 @@ src/
 
 ### 更新记录
 
+- **v0.2.3** — 向导新增 **Clash Verge Rev**、**CFW 经典内核** 目标；OpenClash / Mihomo / Sparkle / Verge 共用 Meta 系渲染；经典 CFW 单独渲染（`path`、`DIRECT` 及订阅格式说明类告警）。
 - **v0.2.2** — Sparkle 导出改为标准 YAML 字段（`proxy-groups` / `proxy-providers` 等），修复内核报「策略组不存在」；策略组内直连项与 `proxies` 中的「直连」一致。新增本地生成测试脚本与 `docs` 示意页。
 - **v0.2.1** — 修复 MetaCubeX 全量规则库同步后条数为 0 的问题（GitHub 对超大仓库的根目录 recursive tree 会截断，导致拿不到 `geo/`；现改为先取 `geo` 子目录再递归，geosite/geoip 规则恢复可搜索）。同步更新 Windows 桌面端版本号。
 - **更早版本** — 见 [GitHub Releases](https://github.com/robinzc2008/clash-yaml-builder/releases)。

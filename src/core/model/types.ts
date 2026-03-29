@@ -1,6 +1,17 @@
 export type AppLanguage = "en" | "zh";
 
-export type TargetPlatform = "openclash" | "windows-mihomo" | "sparkle";
+export type TargetPlatform = "windows-mihomo" | "sparkle";
+
+export const CLASH_META_STYLE_TARGETS = new Set<TargetPlatform>([
+  "windows-mihomo",
+  "sparkle",
+]);
+
+export function usesClashMetaYamlDialect(target: TargetPlatform): boolean {
+  return CLASH_META_STYLE_TARGETS.has(target);
+}
+
+export const ALL_WIZARD_TARGETS: TargetPlatform[] = ["windows-mihomo", "sparkle"];
 
 export type MatchKind =
   | "domain"
@@ -34,20 +45,21 @@ export interface HealthCheckSpec {
   interval: number;
 }
 
+export interface ProxyNodeSpec {
+  name: string;
+  type: string;
+  [key: string]: unknown;
+}
+
 export interface GroupSpec {
   id: string;
   name: string;
   type: GroupType;
   members: GroupMember[];
-  /** 从所有 proxy-providers 拉取全部节点（地区组用） */
   includeAll?: boolean;
-  /** 按节点名正则筛选（地区组用） */
   filter?: string;
-  /** url-test/fallback 的延迟容忍度（ms） */
   tolerance?: number;
-  /** url-test/fallback 的测速间隔（秒） */
   testInterval?: number;
-  /** 测速 URL */
   testUrl?: string;
   platformConstraints?: Partial<Record<TargetPlatform, SupportState>>;
 }
@@ -68,7 +80,6 @@ export interface ProxyProviderSpec {
   filter?: string;
   excludeFilter?: string;
   healthCheck?: HealthCheckSpec;
-  /** 拉取订阅时走的代理（如 "直连"） */
   fetchProxy?: string;
 }
 
@@ -120,6 +131,7 @@ export interface BuilderProject {
     enableAdBlock: boolean;
   };
   groups: GroupSpec[];
+  proxies?: ProxyNodeSpec[];
   proxyProviders: ProxyProviderSpec[];
   ruleProviders: RuleProviderSpec[];
   rules: RuleSpec[];

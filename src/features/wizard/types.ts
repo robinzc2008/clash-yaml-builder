@@ -61,6 +61,7 @@ export interface WizardState {
   aiGroupName: string;
   streamingGroupName: string;
   appleGroupName: string;
+  removedPresetGroupIds: Array<"group-ai-services" | "group-streaming" | "group-apple">;
   customGroups: WizardCustomGroup[];
   finalPolicyMode: "default-proxy" | "direct";
   enableLanDirect: boolean;

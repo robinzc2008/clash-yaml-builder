@@ -4,7 +4,7 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
   en: {
     heroEyebrow: "Cross-platform Routing Rule Studio",
     heroDescription:
-      "This tool helps you generate configuration files for proxy clients (Clash, OpenClash, Sparkle, etc.) through a step-by-step wizard — no coding or manual YAML editing needed.",
+      "This tool helps you generate configuration files for Sparkle and Clash (Windows client) through a step-by-step wizard — no coding or manual YAML editing needed.",
     heroSupport: "Built with care by Robin.",
     author: "by Robin",
     wizard: "Wizard",
@@ -15,7 +15,7 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
     untitled: "Untitled",
 
     step1: "Step 1. Choose Your Device",
-    step1_help: "Which device will use this configuration file? Different devices need different formats — just pick yours and the tool handles the rest.",
+    step1_help: "Pick Sparkle or Clash (Windows client) first. The app will then match the YAML format and syntax details automatically.",
     step2: "Step 2. Name Your Configuration",
     step2_help: "Give your configuration a name (e.g. \"Home setup\"). Then choose a default proxy group name — this is the \"catch-all\" group for apps that don't have special routing rules.",
     step3: "Step 3. Pick Routing Rules",
@@ -164,11 +164,13 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
 
     guideTitle: "How to use this tool",
     guideIntro: "This tool generates a proxy configuration file in 5 simple steps. Here's the idea:",
-    guideStep1: "Pick your device — router (OpenClash), Windows (Mihomo), or Mac (Sparkle).",
+    guideStep1:
+      "Pick your target client profile — Sparkle or Clash (Windows client).",
     guideStep2: "Add your proxy subscription links (from your \"airport\" provider).",
     guideStep3: "Choose which region nodes to include — e.g. Hong Kong, Japan, USA.",
     guideStep4: "Pick rules for the apps you want to route — e.g. ChatGPT goes through the AI group, YouTube through Streaming.",
-    guideStep5: "Export the YAML file and load it into your proxy client. Done!",
+    guideStep5:
+      "Last step: choose either export YAML or copy the local subscription URL. YAML is a backup file you import manually; the local subscription URL is better for daily use because the client can click update later.",
     guideExample: "Example: \"I want ChatGPT to use Hong Kong nodes, and YouTube to use Japan nodes.\"",
     guideExampleExplain: "→ Create an AI strategy group (with Hong Kong region), and a Streaming group (with Japan region). Then assign the ChatGPT rule to AI, and YouTube rule to Streaming.",
     guideConcepts: "Key concepts in plain language",
@@ -186,7 +188,7 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
   zh: {
     heroEyebrow: "跨平台分流规则工作台",
     heroDescription:
-      "这个工具帮你通过一步一步的向导，自动生成代理客户端（Clash、OpenClash、Sparkle 等）的配置文件 — 不需要手动写 YAML，也不需要懂代码。",
+      "这个工具帮你通过一步一步的向导，自动生成 Sparkle 和 Clash（Windows客户端）的配置文件，不需要手动写 YAML，也不需要懂代码。",
     heroSupport: "by Robin",
     author: "by Robin",
     wizard: "向导",
@@ -197,7 +199,7 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
     untitled: "未命名",
 
     step1: "第 1 步：选择你的设备",
-    step1_help: "你打算在哪台设备上使用这个配置文件？不同设备需要不同格式 — 选对设备，工具会自动处理格式差异。",
+    step1_help: "先选 Sparkle 或 Clash（Windows客户端）。工具会自动匹配对应的 YAML 格式和参数细节。",
     step2: "第 2 步：给配置起个名字",
     step2_help: "给你的配置取个名字（比如「家庭方案」），然后设置一个默认代理组 — 这是所有没有单独分流规则的应用/网站的「兜底」走哪条线路。",
     step3: "第 3 步：选择分流规则",
@@ -346,11 +348,13 @@ export const messages: Record<AppLanguage, Record<string, string>> = {
 
     guideTitle: "🎯 使用指南（3 分钟上手）",
     guideIntro: "这个工具帮你生成代理配置文件，只需 5 步。核心思路是：",
-    guideStep1: "选设备 — 你用路由器（OpenClash）、Windows（Mihomo）还是 Mac（Sparkle）？",
+    guideStep1:
+      "先选目标客户端档案 — Sparkle 或 Clash（Windows客户端）。",
     guideStep2: "填订阅 — 把机场给你的订阅链接粘贴进来。",
     guideStep3: "选地区 — 你需要哪些国家/地区的节点？比如香港、日本、美国。",
     guideStep4: "选规则 — 你想让哪些应用走代理？比如 ChatGPT、YouTube、GitHub。",
-    guideStep5: "导出 YAML — 下载配置文件，导入到你的代理客户端就完成了！",
+    guideStep5:
+      "最后一步：二选一。要么导出 YAML，要么复制本地订阅链接。YAML 适合手动导入和留作备份；本地订阅链接更适合日常使用，后续可以直接在客户端里点“更新订阅”。",
     guideExample: "举个例子：「我想让 ChatGPT 走香港节点，YouTube 走日本节点」",
     guideExampleExplain: "→ 建一个 AI 策略组（关联香港地区），一个流媒体策略组（关联日本地区）。然后把 ChatGPT 规则分给 AI 组，YouTube 规则分给流媒体组。",
     guideConcepts: "核心概念（白话版）",

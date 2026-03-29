@@ -59,6 +59,7 @@ export function renderProxyGroup(
       type: group.type,
       "include-all": true,
     };
+    if (group.testUrl) entry.url = group.testUrl;
     if (group.filter) entry.filter = group.filter;
     if (group.tolerance) entry.tolerance = group.tolerance;
     if (group.testInterval) entry.interval = group.testInterval;
@@ -72,15 +73,22 @@ export function renderProxyGroup(
   };
 }
 
+export interface RenderProxyProviderOptions {
+  /** 经典 Clash：HTTP provider 常需本地缓存路径；若设置则优先于 provider.path */
+  cachePath?: string;
+}
+
 export function renderProxyProvider(
   provider: ProxyProviderSpec,
+  options?: RenderProxyProviderOptions,
 ): Record<string, unknown> {
   const output: Record<string, unknown> = {
     type: provider.sourceType,
   };
 
   if (provider.url) output.url = provider.url;
-  if (provider.path) output.path = provider.path;
+  if (options?.cachePath) output.path = options.cachePath;
+  else if (provider.path) output.path = provider.path;
   if (provider.interval) output.interval = provider.interval;
   if (provider.filter) output.filter = provider.filter;
   if (provider.excludeFilter) output["exclude-filter"] = provider.excludeFilter;
@@ -100,6 +108,7 @@ export function renderProxyProvider(
 
 export function renderRuleProvider(
   provider: RuleProviderSpec,
+  options?: { cachePath?: string },
 ): Record<string, unknown> {
   const output: Record<string, unknown> = {
     type: provider.sourceType,
@@ -108,7 +117,8 @@ export function renderRuleProvider(
 
   if (provider.format) output.format = provider.format;
   if (provider.url) output.url = provider.url;
-  if (provider.path) output.path = provider.path;
+  if (options?.cachePath) output.path = options.cachePath;
+  else if (provider.path) output.path = provider.path;
   if (provider.interval) output.interval = provider.interval;
   if (provider.payload) output.payload = provider.payload;
 

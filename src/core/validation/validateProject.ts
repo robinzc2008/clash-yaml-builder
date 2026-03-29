@@ -14,8 +14,9 @@ function validateGroupReferences(project: BuilderProject): ValidationIssue[] {
   );
 
   for (const group of project.groups) {
-    // includeAll 地区组不通过 members 引用节点，跳过成员检查
-    if (group.includeAll) continue;
+    if (group.includeAll) {
+      continue;
+    }
 
     for (const member of group.members) {
       if (
