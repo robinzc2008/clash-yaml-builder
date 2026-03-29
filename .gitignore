@@ -4,3 +4,5 @@ src-tauri/target/
 tsconfig.tsbuildinfo
 .DS_Store
 Thumbs.db
+# 本地脚本生成的测试配置（可能含订阅 token）
+sparkle-test*.yaml

@@ -8,8 +8,9 @@ import {
 } from "./shared";
 
 export function renderOpenClash(project: BuilderProject): RenderedConfig {
+  const groupOpts = { directMemberLabel: "直连" as const };
   const proxyGroups = project.groups.map((group) =>
-    renderProxyGroup(group, project),
+    renderProxyGroup(group, project, groupOpts),
   );
 
   const proxyProviders = Object.fromEntries(

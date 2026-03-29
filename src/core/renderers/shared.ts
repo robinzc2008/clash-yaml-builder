@@ -13,9 +13,21 @@ export function resolvePolicy(policy: PolicyRef): string {
   return policy.kind === "builtin" ? policy.value : policy.value;
 }
 
-export function renderGroupMember(member: GroupMember, project: BuilderProject): string {
+/** 策略组成员里「直连」展示：DIRECT 为内核内置名；直连 为 proxies 里的具名 direct 节点（与 proxy-provider 的 proxy: 直连 一致） */
+export interface RenderProxyGroupOptions {
+  directMemberLabel?: "DIRECT" | "直连";
+}
+
+export function renderGroupMember(
+  member: GroupMember,
+  project: BuilderProject,
+  options?: RenderProxyGroupOptions,
+): string {
   switch (member.kind) {
     case "builtin":
+      if (member.value === "DIRECT" && options?.directMemberLabel === "直连") {
+        return "直连";
+      }
       return member.value;
     case "group": {
       const group = project.groups.find(
@@ -39,6 +51,7 @@ export function renderGroupMember(member: GroupMember, project: BuilderProject):
 export function renderProxyGroup(
   group: GroupSpec,
   project: BuilderProject,
+  options?: RenderProxyGroupOptions,
 ): Record<string, unknown> {
   if (group.includeAll) {
     const entry: Record<string, unknown> = {
@@ -55,7 +68,7 @@ export function renderProxyGroup(
   return {
     name: group.name,
     type: group.type,
-    proxies: group.members.map((member) => renderGroupMember(member, project)),
+    proxies: group.members.map((member) => renderGroupMember(member, project, options)),
   };
 }
 

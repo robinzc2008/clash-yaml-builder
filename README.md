@@ -80,6 +80,7 @@ src/
 
 ### Changelog
 
+- **v0.2.2** — Sparkle export uses standard Mihomo/Clash YAML keys (`proxy-groups`, `proxy-providers`, etc.); strategy groups list **直连** alongside the injected direct proxy for consistency with subscription fetch. Added `scripts/generate-sparkle-sample.ts` and `docs/` overview HTML.
 - **v0.2.1** — Fixed MetaCubeX full rule catalog sync returning no rules (GitHub truncates huge recursive trees at repo root; the app now requests the `geo/` subtree so geosite/geoip YAML entries appear in search again). Version bump for Windows desktop builds.
 - **Earlier versions** — See [GitHub Releases](https://github.com/robinzc2008/clash-yaml-builder/releases).
 
@@ -169,6 +170,7 @@ src/
 
 ### 更新记录
 
+- **v0.2.2** — Sparkle 导出改为标准 YAML 字段（`proxy-groups` / `proxy-providers` 等），修复内核报「策略组不存在」；策略组内直连项与 `proxies` 中的「直连」一致。新增本地生成测试脚本与 `docs` 示意页。
 - **v0.2.1** — 修复 MetaCubeX 全量规则库同步后条数为 0 的问题（GitHub 对超大仓库的根目录 recursive tree 会截断，导致拿不到 `geo/`；现改为先取 `geo` 子目录再递归，geosite/geoip 规则恢复可搜索）。同步更新 Windows 桌面端版本号。
 - **更早版本** — 见 [GitHub Releases](https://github.com/robinzc2008/clash-yaml-builder/releases)。
 
