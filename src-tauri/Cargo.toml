@@ -1,6 +1,6 @@
 [package]
 name = "clash-yaml-builder"
-version = "0.2.3"
+version = "0.2.4"
 description = "Desktop shell for clash-yaml-builder"
 authors = ["Robin"]
 license = ""

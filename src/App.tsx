@@ -201,8 +201,8 @@ function getUpdatableSubscriptionActionLabel(
 ) {
   const client = getClientLabel(target, language);
   return language === "zh"
-    ? `复制 ${client} 可更新订阅地址`
-    : `Copy ${client} updatable subscription URL`;
+    ? `复制 ${client} 订阅链接（可更新）`
+    : `Copy ${client} subscription link (updatable)`;
 }
 
 function formatCoreDetectionSummary(
@@ -982,8 +982,8 @@ export function App() {
     if (hasBlockingValidationErrors) {
       setImportMessage(
         wizard.language === "zh"
-          ? `当前仍有阻断错误，已停止发布 ${clientLabel} 订阅地址。请先处理验证面板里的 ERROR 项。`
-          : `Publishing the ${clientLabel} subscription URL was blocked because the project still has validation errors. Please fix the ERROR items first.`,
+          ? `当前仍有阻断错误，已停止生成并复制 ${clientLabel} 订阅链接。请先处理验证面板里的 ERROR 项。`
+          : `Generating and copying the ${clientLabel} subscription link was blocked because the project still has validation errors. Please fix the ERROR items first.`,
       );
       return;
     }
@@ -991,8 +991,8 @@ export function App() {
     if (!hasDesktopRuntime) {
       setImportMessage(
         wizard.language === "zh"
-          ? `当前是 Web 预览模式。发布 ${clientLabel} 可更新订阅地址需要桌面版运行时。`
-          : `You are currently in the web preview. Publishing a ${clientLabel} updatable subscription URL requires the desktop runtime.`,
+          ? `当前是 Web 预览模式。复制 ${clientLabel} 可更新订阅链接需要桌面版运行时。`
+          : `You are currently in the web preview. Copying a ${clientLabel} updatable subscription link requires the desktop runtime.`,
       );
       return;
     }
@@ -1021,18 +1021,18 @@ export function App() {
       await copyTextToClipboard(subscriptionUrl);
       setImportMessage(
         wizard.language === "zh"
-          ? `已复制 ${clientLabel} 可更新订阅地址：${subscriptionUrl}。把这个地址导入客户端后，后续点“更新订阅”就会重新拉取机场节点，并按你当前项目里的规则格式生成最新配置。关闭窗口会自动缩到托盘；如果把本应用彻底退出，后续节点更新可能失效。`
-          : `Copied the ${clientLabel} updatable subscription URL: ${subscriptionUrl}. Import this URL into the client, then future "Update subscription" actions will fetch the latest airport nodes and rebuild the config with your current routing format. Closing the window keeps the app in the tray; fully exiting the app can break later node updates.`,
+          ? `已复制 ${clientLabel} 可更新订阅链接：${subscriptionUrl}。把这个链接导入客户端后，后续点“更新订阅”就会重新拉取机场节点，并按你当前项目里的规则格式生成最新配置。关闭窗口会自动缩到托盘；如果把本应用彻底退出，后续节点更新可能失效。`
+          : `Copied the ${clientLabel} updatable subscription link: ${subscriptionUrl}. Import this link into the client, then future "Update subscription" actions will fetch the latest airport nodes and rebuild the config with your current routing format. Closing the window keeps the app in the tray; fully exiting the app can break later node updates.`,
       );
     } catch (error) {
       setImportMessage(
         error instanceof Error
           ? (wizard.language === "zh"
-              ? `发布 ${clientLabel} 订阅地址失败：${error.message}`
-              : `Publishing the ${clientLabel} subscription URL failed: ${error.message}`)
+              ? `复制 ${clientLabel} 订阅链接失败：${error.message}`
+              : `Copying the ${clientLabel} subscription link failed: ${error.message}`)
           : (wizard.language === "zh"
-              ? `发布 ${clientLabel} 订阅地址失败。`
-              : `Publishing the ${clientLabel} subscription URL failed.`),
+              ? `复制 ${clientLabel} 订阅链接失败。`
+              : `Copying the ${clientLabel} subscription link failed.`),
       );
     }
   }
@@ -1714,7 +1714,7 @@ export function App() {
               <article className="panel">
                 <h2>{t.step1_5}</h2>
                 <p className="step-help">{t.step1_5_help}</p>
-                {supportsUpdatableSubscription && hasSubscriptionUrls ? (
+                {supportsUpdatableSubscription ? (
                   <p
                     className={`helper-text subscription-status ${
                       hasDesktopRuntime ? "subscription-status-good" : "subscription-status-warn"
@@ -1722,11 +1722,11 @@ export function App() {
                   >
                     {hasDesktopRuntime
                       ? wizard.language === "zh"
-                        ? `桌面版会在本地自动解析当前订阅。你既可以导出一份本地 YAML 备用，也可以发布 ${clientLabel} 可更新订阅地址。`
-                        : `The desktop app resolves the current subscriptions locally. You can export a local YAML as a backup, or publish an updatable ${clientLabel} subscription URL.`
+                        ? `桌面版会在本地自动解析当前订阅。你既可以导出一份本地 YAML 备用，也可以直接复制 ${clientLabel} 可更新订阅链接。`
+                        : `The desktop app resolves the current subscriptions locally. You can export a local YAML as a backup, or directly copy an updatable ${clientLabel} subscription link.`
                       : wizard.language === "zh"
-                        ? `${clientLabel} 的本地解析、可更新订阅地址和后台桥接都需要桌面版。`
-                        : `${clientLabel} local resolution, the updatable subscription URL, and the background bridge all require the desktop app.`}
+                        ? `${clientLabel} 的本地解析、可更新订阅链接和后台桥接都需要桌面版。`
+                        : `${clientLabel} local resolution, the updatable subscription link, and the background bridge all require the desktop app.`}
                   </p>
                 ) : null}
                 <div className="stack">
@@ -2546,16 +2546,16 @@ export function App() {
                       className="action-button action-button-secondary"
                       onClick={exportYaml}
                       type="button"
-                      disabled={hasBlockingValidationErrors}
+                      disabled={hasBlockingValidationErrors || !hasSubscriptionUrls}
                     >
                       {t.exportYaml}
                     </button>
-                    {supportsUpdatableSubscription && hasSubscriptionUrls ? (
+                    {supportsUpdatableSubscription ? (
                       <button
                         className="action-button"
                         onClick={() => void publishUpdatableSubscriptionUrl()}
                         type="button"
-                        disabled={hasBlockingValidationErrors}
+                        disabled={hasBlockingValidationErrors || !hasSubscriptionUrls}
                       >
                         {getUpdatableSubscriptionActionLabel(wizard.target, wizard.language)}
                       </button>
@@ -2589,11 +2589,11 @@ export function App() {
                       : "Exporting YAML is best for a backup file. The app fetches the subscriptions locally at the last step and writes the nodes directly into the file, so the preview on this page is still the draft before resolution."}
                   </p>
                 ) : null}
-                {supportsUpdatableSubscription && hasSubscriptionUrls ? (
+                {supportsUpdatableSubscription ? (
                   <p className="helper-text">
                     {wizard.language === "zh"
-                      ? `日常使用更推荐“${getUpdatableSubscriptionActionLabel(wizard.target, "zh")}”。客户端导入这个本地地址后，点“更新订阅”时会重新拉取机场节点，并按你当前项目里的规则格式重新生成。关闭窗口会缩到托盘；如果把本应用彻底退出，后续节点更新可能失效。`
-                      : `For daily use, the recommended path is "${getUpdatableSubscriptionActionLabel(wizard.target, "en")}". After the client imports that local URL, each "Update subscription" action fetches the latest airport nodes and rebuilds the config with your current routing format. Closing the window sends the app to the tray; fully exiting the app can break later node updates.`}
+                      ? `日常使用更推荐“${getUpdatableSubscriptionActionLabel(wizard.target, "zh")}”。客户端导入这个本地链接后，点“更新订阅”时会重新拉取机场节点，并按你当前项目里的规则格式重新生成。关闭窗口会缩到托盘；如果把本应用彻底退出，后续节点更新可能失效。`
+                      : `For daily use, the recommended path is "${getUpdatableSubscriptionActionLabel(wizard.target, "en")}". After the client imports that local link, each "Update subscription" action fetches the latest airport nodes and rebuilds the config with your current routing format. Closing the window sends the app to the tray; fully exiting the app can break later node updates.`}
                   </p>
                 ) : null}
                 {importMessage ? <p className="import-message">{importMessage}</p> : null}
